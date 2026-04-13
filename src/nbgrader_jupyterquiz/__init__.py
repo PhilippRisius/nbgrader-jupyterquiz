@@ -1,4 +1,10 @@
-"""Nbgrader plugin to provide better feedback to students."""
+"""
+Interactive graded quizzes for Jupyter notebooks (nbgrader-jupyterquiz).
+
+Provides the :class:`~nbgrader_jupyterquiz.grader.CreateQuiz` nbgrader
+preprocessor and the :func:`~nbgrader_jupyterquiz.display.display_quiz`
+display function.
+"""
 
 ###################################################################################
 # MIT License
@@ -24,14 +30,12 @@
 # SOFTWARE.
 ###################################################################################
 
-__author__ = """Philipp Emmo Tobias Risius"""
+__author__ = "Philipp Emmo Tobias Risius"
 __email__ = "philipp.e.risius@theo.physik.uni-giessen.de"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-__all__ = ["CSVExporter", "MailExporter", "ReportCardExporter", "__version__"]
+from nbgrader_jupyterquiz.display import capture_responses, display_quiz
+from nbgrader_jupyterquiz.grader import CreateQuiz
 
-from nbgrader_jupyterquiz.report_creation.nbgrader_exporter import (
-    CSVExporter,
-    MailExporter,
-    ReportCardExporter,
-)
+
+__all__ = ["CreateQuiz", "capture_responses", "display_quiz"]

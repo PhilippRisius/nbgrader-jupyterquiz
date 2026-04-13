@@ -11,3 +11,7 @@ def test_version():
 def test_all_exports_importable():
     for name in nbgrader_jupyterquiz.__all__:
         assert hasattr(nbgrader_jupyterquiz, name), f"{name!r} listed in __all__ but not importable"
+
+
+def test_expected_public_api():
+    assert set(nbgrader_jupyterquiz.__all__) == {"CreateQuiz", "display_quiz", "capture_responses"}

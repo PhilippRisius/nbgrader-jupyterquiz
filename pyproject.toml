@@ -32,8 +32,12 @@ classifiers = [
 ]
 dynamic = ["description", "version"]
 dependencies = [
-  "argcomplete",
+  "ipython",
+  "jsonschema",
+  "nbconvert",
+  "nbformat",
   "nbgrader >=0.9",
+  "traitlets"
 ]
 
 [project.optional-dependencies]
@@ -66,11 +70,6 @@ docs = [
 ]
 all = ["nbgrader_jupyterquiz[dev]", "nbgrader_jupyterquiz[docs]"]
 
-# TODO: Before first release, evaluate whether the create_report CLI script should
-# remain or be removed in favour of pure nbgrader plugin usage (--exporter=...).
-[project.scripts]
-create_report = "nbgrader_jupyterquiz.interface.command_line:main"
-
 [project.urls]
 # "Homepage" = "https://nbgrader-jupyterquiz.readthedocs.io/"
 # "Changelog" = "https://nbgrader-jupyterquiz.readthedocs.io/en/stable/changelog.html"
@@ -80,7 +79,7 @@ create_report = "nbgrader_jupyterquiz.interface.command_line:main"
 [tool]
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "0.2.0"
 commit = true
 commit_args = "--no-verify"
 message = "Bump version: {current_version} → {new_version} [skip ci]"
@@ -142,8 +141,9 @@ values = [
 ]
 
 [tool.codespell]
-# "nd" (German particle), "ges" (German note name) appear in fixture HTML output
-ignore-words-list = "astroid,socio-economic,nd,ges"
+# "nd"/"ges" — German words in fixture HTML; "ths" — upstream JS variable name
+# (shorthand for `this` in the forked jupyterquiz JavaScript).
+ignore-words-list = "astroid,socio-economic,nd,ges,ths"
 
 [tool.coverage.paths]
 source = ["src/nbgrader_jupyterquiz/", "*/site-packages/nbgrader_jupyterquiz/"]
@@ -161,6 +161,7 @@ pep621_dev_dependency_groups = ["all", "dev", "docs"]
 include = [
   ".zenodo.json",
   "AUTHORS.rst",
+  "LICENSES/",
   "CHANGELOG.rst",
   "CONTRIBUTING.rst",
   "LICENSE",
@@ -216,17 +217,16 @@ disable_error_code = "attr-defined"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# TODO: Add full type annotations to ported legacy code (interface/ and report_creation/).
-# nbgrader ships no stubs; ExportPlugin resolves to Any in nbgrader_exporter.
+# nbgrader ships no stubs; relax type checking for grader modules that use it.
 module = [
-  "nbgrader_jupyterquiz.__main__",
-  "nbgrader_jupyterquiz.interface.cli_args",
-  "nbgrader_jupyterquiz.interface.command_line",
-  "nbgrader_jupyterquiz.report_creation.create_report",
-  "nbgrader_jupyterquiz.report_creation.nbgrader_exporter",
-  "nbgrader_jupyterquiz.report_creation.plotting",
-  "nbgrader_jupyterquiz.report_creation.read_csv_results",
-  "nbgrader_jupyterquiz.report_creation.report_writer"
+  "nbgrader_jupyterquiz.grader.preprocessor"
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# display/ is a fork of upstream jupyterquiz which carries no type annotations.
+module = [
+  "nbgrader_jupyterquiz.display.*"
 ]
 ignore_errors = true
 
@@ -332,9 +332,9 @@ max-complexity = 15
 [tool.ruff.lint.per-file-ignores]
 "docs/**" = ["E402"]
 "src/nbgrader_jupyterquiz/**/__init__.py" = ["F401", "F403"]
-# TODO: Add docstrings and fix style issues in ported legacy modules.
-"src/nbgrader_jupyterquiz/interface/**" = ["D100", "D101", "D102", "D103", "D104"]
-"src/nbgrader_jupyterquiz/report_creation/**" = ["C901", "D100", "D101", "D102", "D103", "D104", "D105", "G004", "PERF203"]
+# display/ is forked from upstream jupyterquiz; don't enforce security lints on
+# patterns inherited from that codebase (assert, random div-id, urlopen).
+"src/nbgrader_jupyterquiz/display/**" = ["S101", "S310", "S311"]
 "tests/**" = ["D100", "D101", "D102", "D103", "S101"]
 
 [tool.ruff.lint.pycodestyle]
