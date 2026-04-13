@@ -1,0 +1,12 @@
+{
+  "exa": {
+    "name": "Exa M. Ple",
+    "email": "exa.m.ple@example-u.edu",
+    "username": "userid1234"
+  },
+  "assistant": {
+    "name": "Illu Stration",
+    "email": "illu.stration@example-u.edu",
+    "username": "userid5678"
+  }
+}

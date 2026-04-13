@@ -1,0 +1,86 @@
+{
+  "module": {
+    "name": "Example module",
+    "lecturer": "Prof. Dr. Exa M. Ple",
+    "lecturer_address": [
+      "Institute for providing an example",
+      "1 Illustration St, Exampletown 12345",
+      "Fon: +49 123 45-67890",
+      "Fax: +49 123 45-67899",
+      "Exa.M.Ple@faculty.Example-u.edu"
+    ],
+    "term": "Summer 2025",
+    "exam_type": "homework exercise"
+  },
+  "mail_data": {
+    "smtp": {
+      "server": "smtp.example-u.edu",
+      "port": 587
+    },
+    "sender": "exa",
+    "address_book": "feedback_address_book.json"
+  },
+  "message_templates": {
+    "path": "feedback_templates",
+    "header": "header.txt",
+    "footer": "footer.txt",
+    "subject": "{module_name}: Your Submission",
+    "additional": {}
+  },
+  "feedback": {
+    "attach": false,
+    "suffix": ".html",
+    "missing_ok": true
+  },
+  "report_cards": {
+    "location": "feedback_report_cards",
+    "template": "template.md",
+    "pandoc-args": [
+      "--template",
+      "letter.latex",
+      "-V",
+      "lang=de"
+    ]
+  },
+  "grading": {
+    "points_100_percent": 6,
+    "points_needed": 3,
+    "default_admission": false,
+    "message_pass_fail": {
+      "True": "Therefore, you passed.",
+      "False": "Therefore, you failed."
+    },
+    "percentage_to_grade": {
+      "0": 0,
+      "21": 1,
+      "32": 2,
+      "38": 3,
+      "45": 4,
+      "50": 5,
+      "54": 6,
+      "59": 7,
+      "64": 8,
+      "68": 9,
+      "73": 10,
+      "77": 11,
+      "82": 12,
+      "87": 13,
+      "92": 14,
+      "97": 15
+    }
+  },
+  "appointments": {
+    "True": [
+      [
+        "on Tuesdays",
+        "in my office"
+      ]
+    ],
+    "False": [
+      [
+        "whenever you want",
+        "before or after lectures."
+      ]
+    ]
+  }
+}

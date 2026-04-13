@@ -1,0 +1,5 @@
+- deal with the draft release workflow
+  - revoke tokens
+  - do this manually
+- test bump-my-version workflow
+- update back the cookiecutter template, either create yet another fork or whatever
