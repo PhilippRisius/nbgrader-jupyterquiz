@@ -57,7 +57,7 @@ docs = [
   "ipykernel",
   "ipython",
   "jupyter_client",
-  "nbsphinx >=0.9.5",
+  "nbsphinx >=0.9.8",
   "sphinx >=7.1.0,<8.2",
   "sphinx-autobuild",
   "sphinx-codeautolink >=0.16.2",
