@@ -56,9 +56,7 @@ def parse_cell(
             question = parse_question(lines)
             try:
                 validate.validate_question(question)
-            except jsonschema.exceptions.ValidationError as e:
-                e.add_note("Question did not validate.")
-                e.add_note(f"{question = }")
+            except jsonschema.exceptions.ValidationError:
                 raise
 
             questions.append(question)
