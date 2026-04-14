@@ -48,6 +48,7 @@ autosectionlabel_maxdepth = 2
 
 # To ensure that underlined fields (e.g. `_field`) are shown in the docs.
 autodoc_default_options = {
+    "members": True,
     "undoc-members": True,
     "private-members": False,
     "special-members": False,
@@ -187,3 +188,35 @@ texinfo_documents = [
      'nbgrader plugin to provide better feedback to students.',
      'Miscellaneous'),
 ]
+
+
+# -- Autodoc helpers -----------------------------------------------------------
+
+def _skip_reexported(
+    app: Any, what: str, name: str, obj: Any, skip: bool, options: Any
+) -> bool | None:
+    """Skip documenting symbols that are re-exported from another module.
+
+    sphinx-apidoc generates ``automodule`` directives (with ``:members:``)
+    for every package ``__init__`` as well as every submodule.  When a symbol
+    is re-exported via ``__init__.__all__``, autodoc documents it in both
+    places, triggering a duplicate-object-description warning.
+
+    The fix: when autodoc is processing a *module's* members (``what='module'``),
+    skip any member whose ``__module__`` attribute differs from the module
+    currently being documented.  The canonical submodule will document it.
+    """
+    if skip or what != "module":
+        return skip
+    obj_module = getattr(obj, "__module__", None)
+    if not obj_module:
+        return skip
+    current_module: str = app.env.temp_data.get("autodoc:module", "")
+    if current_module and obj_module != current_module:
+        return True  # re-export: document at definition site only
+    return skip
+
+
+def setup(app: Any) -> None:
+    """Register project-level Sphinx event handlers."""
+    app.connect("autodoc-skip-member", _skip_reexported)
