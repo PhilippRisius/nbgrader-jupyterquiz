@@ -32,10 +32,38 @@ Delimiters may not be nested.
 Quiz-level options
 ------------------
 
-Text placed on the same line as ``#### Quiz``, after the delimiter, is reserved
-for quiz-level options (e.g. ``#### Quiz encoded=false hidden=false``).  Parsing
-of these options is **not yet implemented** — they are accepted but ignored.  The
-default behaviour (encoded, inline, hidden) applies regardless.
+Text placed on the same line as ``#### Quiz``, after the delimiter, configures
+how the quiz data is embedded.  Options are space-separated ``key=value`` pairs;
+boolean values are ``true`` or ``false`` (case-insensitive).  Unrecognised keys
+are silently ignored.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 10 70
+
+   * - Option
+     - Default
+     - Description
+   * - ``encoded``
+     - ``true``
+     - Base64-encode the question data before embedding it in the notebook.
+   * - ``inline``
+     - ``true``
+     - Embed the question data directly in the markdown cell source.
+       When ``false``, the data is referenced by notebook name instead.
+   * - ``hidden``
+     - ``true``
+     - When ``inline=true``, wrap the embedded data in a
+       ``<span style="display:none">`` so it is not visible to students.
+       Has no effect when ``inline=false``.
+   * - ``filename``
+     - *(none)*
+     - Write question data to this file path instead of embedding it inline.
+       Overrides the ``inline`` option.
+
+Example — plain JSON written to a file::
+
+    #### Quiz encoded=false filename=quiz_data.json
 
 Question types
 --------------

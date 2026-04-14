@@ -283,3 +283,66 @@ def test_parse_cell_validation_error_propagates():
     source = '#### Quiz\n* (SC) "A question?"\n  + (Feedback but no answer text)\n#### End Quiz'
     with pytest.raises(jsonschema.exceptions.ValidationError):
         parse_cell(source)
+
+
+# ---------------------------------------------------------------------------
+# parse_quiz_options
+# ---------------------------------------------------------------------------
+
+
+def test_parse_quiz_options_empty_returns_defaults():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    result = parse_quiz_options("")
+    assert result == {"encoded": True, "inline": True, "hidden": True, "filename": None}
+
+
+def test_parse_quiz_options_key_value_pairs():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    result = parse_quiz_options("encoded=false hidden=false")
+    assert result["encoded"] is False
+    assert result["hidden"] is False
+    assert result["inline"] is True  # default preserved
+
+
+def test_parse_quiz_options_filename():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    result = parse_quiz_options("filename=quiz.json inline=false")
+    assert result["filename"] == "quiz.json"
+    assert result["inline"] is False
+
+
+def test_parse_quiz_options_ignores_unknown_keys():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    result = parse_quiz_options("unknown_key=value encoded=false")
+    assert result["encoded"] is False
+
+
+def test_parse_quiz_options_token_without_equals_ignored():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    result = parse_quiz_options("bareword encoded=false")
+    assert result["encoded"] is False
+
+
+# ---------------------------------------------------------------------------
+# parse_cell — custom delimiters
+# ---------------------------------------------------------------------------
+
+
+def test_parse_cell_custom_delimiters():
+    source = '## START\n* (SC) "Q?"\n  + "A"\n  - "B"\n## END'
+    quizzes, remaining = parse_cell(source, begin_quiz_delimiter="## START", end_quiz_delimiter="## END")
+    assert len(quizzes) == 1
+    assert remaining == []
+
+
+def test_parse_cell_default_delimiter_ignored_when_custom_set():
+    """Default '#### Quiz' delimiter not matched when custom delimiters are used."""
+    source = '#### Quiz\n* (SC) "Q?"\n  + "A"\n#### End Quiz'
+    quizzes, remaining = parse_cell(source, begin_quiz_delimiter="## START", end_quiz_delimiter="## END")
+    assert quizzes == []
+    assert "#### Quiz" in remaining
