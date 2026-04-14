@@ -48,7 +48,6 @@ autosectionlabel_maxdepth = 2
 
 # To ensure that underlined fields (e.g. `_field`) are shown in the docs.
 autodoc_default_options = {
-    "members": True,
     "undoc-members": True,
     "private-members": False,
     "special-members": False,
