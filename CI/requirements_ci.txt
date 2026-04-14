@@ -23,7 +23,7 @@ bracex==2.6 \
 bump-my-version==1.2.7 \
     --hash=sha256:16f89360f979c0a8eb3249ebe3e13ae4f0cb5481d7bb58e12a9f66996922acfd \
     --hash=sha256:d915a10b41e0c9db5a2fa39bde9f45f92e1e4194242d819c9ceb9eca8831cd21
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 cachetools==7.0.2 \
     --hash=sha256:7e7f09a4ca8b791d8bb4864afc71e9c17e607a28e6839ca1a644253c97dbeae0 \
     --hash=sha256:938dcad184827c5e94928c4fd5526e2b46692b7fb1ae94472da9131d0299343c
@@ -178,7 +178,7 @@ deptry==0.24.0 \
     --hash=sha256:a575880146bab671a62babb9825b85b4f1bda8aeaade4fcb59f9262caf91d6c7 \
     --hash=sha256:dd22fa2dbbdf4b38061ca9504f2a6ce41ec14fa5c9fe9b0b763ccc1275efebd5 \
     --hash=sha256:ea58709e5f3aa77c0737d8fb76166b7703201cf368fbbb14072ccda968b6703a
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 dill==0.4.1 \
     --hash=sha256:1e1ce33e978ae97fcfcff5638477032b801c46c7c65cf717f95fbc2248f79a9d \
     --hash=sha256:423092df4182177d4d8ba8290c8a5b640c66ab35ec7da59ccfa00f6fa3eea5fa
@@ -194,7 +194,7 @@ docutils==0.22.4 \
 exceptiongroup==1.3.1 \
     --hash=sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219 \
     --hash=sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 filelock==3.25.0 \
     --hash=sha256:5ccf8069f7948f494968fc0713c10e5c182a9c9d9eef3a636307a20c2490f047 \
     --hash=sha256:8f00faf3abf9dc730a1ffe9c354ae5c04e079ab7d3a683b7c32da5dd05f26af3
@@ -205,7 +205,7 @@ filelock==3.25.0 \
 flit==3.12.0 \
     --hash=sha256:1c80f34dd96992e7758b40423d2809f48f640ca285d0b7821825e50745ec3740 \
     --hash=sha256:2b4e7171dc22881fa6adc2dbf083e5ecc72520be3cd7587d2a803da94d6ef431
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 flit-core==3.12.0 \
     --hash=sha256:18f63100d6f94385c6ed57a72073443e1a71a4acb4339491615d0f16d6ff01b2 \
     --hash=sha256:e7a0304069ea895172e3c7bb703292e992c5d1555dd1233ab7b5621b5b69e62c
@@ -409,7 +409,7 @@ pygments==2.19.2 \
 pylint==4.0.5 \
     --hash=sha256:00f51c9b14a3b3ae08cff6b2cdd43f28165c78b165b628692e428fb1f8dc2cf2 \
     --hash=sha256:8cd6a618df75deb013bd7eb98327a95f02a6fb839205a6bbf5456ef96afb317c
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 pyproject-api==1.10.0 \
     --hash=sha256:40c6f2d82eebdc4afee61c773ed208c04c19db4c4a60d97f8d7be3ebc0bbb330 \
     --hash=sha256:8757c41a79c0f4ab71b99abed52b97ecf66bd20b04fa59da43b5840bac105a09
@@ -426,9 +426,9 @@ questionary==2.1.1 \
     --hash=sha256:3d7e980292bb0107abaa79c68dd3eee3c561b83a0f89ae482860b181c8bd412d \
     --hash=sha256:a51af13f345f1cdea62347589fbb6df3b290306ab8930713bfae4d475a7d4a59
     # via bump-my-version
-requests==2.32.5 \
-    --hash=sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6 \
-    --hash=sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf
+requests==2.33.0 \
+    --hash=sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b \
+    --hash=sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652
     # via flit
 requirements-parser==0.13.0 \
     --hash=sha256:0843119ca2cb2331de4eb31b10d70462e39ace698fd660a915c247d2301a4418 \
@@ -492,7 +492,7 @@ tomli==2.4.0 \
     --hash=sha256:d20b797a5c1ad80c516e41bc1fb0443ddb5006e9aaa7bda2d71978346aeb9132 \
     --hash=sha256:d3d1654e11d724760cdb37a3d7691f0be9db5fbdaef59c9f532aabf87006dbaa \
     --hash=sha256:d878f2a6707cc9d53a1be1414bbb419e629c3d6e67f69230217bb663e76b5087
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 tomli-w==1.2.0 \
     --hash=sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90 \
     --hash=sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021
@@ -507,12 +507,12 @@ tox==4.47.3 \
     --hash=sha256:57643508d4c218ad312457a3b0ce3135c50fa1f9f1e4d40867683d880cad1c37 \
     --hash=sha256:e447862a6821b421bbbfb8cbac071818c0a6884907a4c964d8322516d0b19b34
     # via
-    #   -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    #   -r requirements_ci.in
     #   tox-gh
 tox-gh==1.7.1 \
     --hash=sha256:4f4871ee4091b41464f2df9ab1fcedb14a48accdecbb60d53297301a9d8984c6 \
     --hash=sha256:a82285b16a597516f9a24f20326b124ddc7924a8b70cb05a9192e1c53d7f701d
-    # via -r /home/Claude/pytest_nbgrader/CI/requirements_ci.in
+    # via -r requirements_ci.in
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
