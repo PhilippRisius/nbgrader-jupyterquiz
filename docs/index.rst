@@ -1,5 +1,5 @@
 Welcome to nbgrader-jupyterquiz's documentation!
-==============================================
+=================================================
 
 .. toctree::
    :maxdepth: 2

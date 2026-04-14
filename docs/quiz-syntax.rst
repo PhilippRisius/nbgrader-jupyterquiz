@@ -40,7 +40,7 @@ default behaviour (encoded, inline, hidden) applies regardless.
 Question types
 --------------
 
-Every question line begins with ``* `` followed by a type code in parentheses
+Every question line begins with ``*`` followed by a type code in parentheses
 and the question text in double quotes.
 
 +--------+------------------+-------------------------------------------+
@@ -69,7 +69,7 @@ line.
    * - ``"question text"``
      - all
      - The question text displayed to the student.
-   * - `` ```code``` ``
+   * - \`\`\`code\`\`\`
      - all
      - A code block displayed as (or instead of) the question text.
    * - ``[N]``

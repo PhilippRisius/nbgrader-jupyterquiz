@@ -9,6 +9,7 @@ generates during ``nbgrader assign``, but you can also call it directly when
 working with quizzes outside the nbgrader pipeline.
 
 .. autofunction:: nbgrader_jupyterquiz.display_quiz
+   :no-index:
 
 Reference source
 ----------------
@@ -152,6 +153,7 @@ Capturing responses
 -------------------
 
 .. autofunction:: nbgrader_jupyterquiz.capture_responses
+   :no-index:
 
 .. note::
 

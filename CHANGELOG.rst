@@ -3,7 +3,7 @@ Changelog
 =========
 
 `Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
--------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 Contributors:
 
@@ -18,7 +18,7 @@ Fixes
 .. _changes_0.2.0:
 
 `v0.2.0 <https://github.com/PhilippRisius/nbgrader-jupyterquiz/tree/v0.2.0>`_ (2026-04-13)
-----------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------
 
 Contributors: Philipp Emmo Tobias Risius (:user:`PhilippRisius`)
 

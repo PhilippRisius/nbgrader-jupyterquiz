@@ -207,14 +207,14 @@ def parse_question(lines: list[str]) -> dict[str, Any]:
 
 
 def parse_line(line: str, **components: tuple[str, str, Any]) -> dict[str, Any]:
-    """
+    r"""
     Parse delimited components from a line and typecast them.
 
     Parameters
     ----------
     line : str
         Text to parse.
-    **components
+    \*\*components : tuple[str, str, Any]
         Each keyword is a component name mapped to a
         ``(left_delim, right_delim, typecast)`` triple.
 
@@ -252,7 +252,7 @@ def line_to_question(line: str) -> dict[str, Any]:
     Parameters
     ----------
     line : str
-        Question line starting with ``* ``.
+        Question line starting with ``*``.
 
     Returns
     -------
