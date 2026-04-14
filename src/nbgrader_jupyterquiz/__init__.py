@@ -32,7 +32,7 @@ display function.
 
 __author__ = "Philipp Emmo Tobias Risius"
 __email__ = "philipp.e.risius@theo.physik.uni-giessen.de"
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from nbgrader_jupyterquiz.display import capture_responses, display_quiz
 from nbgrader_jupyterquiz.grader import CreateQuiz
