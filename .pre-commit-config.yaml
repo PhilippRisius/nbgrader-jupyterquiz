@@ -17,7 +17,6 @@ repos:
       - id: fix-byte-order-marker
       - id: name-tests-test
         args: [ '--pytest-test-first' ]
-        exclude: ^tests/fixtures/
       - id: no-commit-to-branch
         args: [ '--branch', 'main' ]
       - id: trailing-whitespace
@@ -48,7 +47,7 @@ repos:
         args: [ '--fix', '--show-fixes' ]
       - id: ruff-format
   - repo: https://github.com/jendrikseipp/vulture
-    rev: v2.14
+    rev: v2.16
     hooks:
       - id: vulture
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -66,7 +65,7 @@ repos:
     hooks:
       - id: numpydoc-validation
         # TODO: Add numpydoc-style docstrings to ported legacy modules.
-        exclude: ^docs/|^tests/|^src/nbgrader_jupyterquiz/interface/|^src/nbgrader_jupyterquiz/report_creation/
+        exclude: ^docs/|^tests/
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.34.0
     hooks:
