@@ -20,4 +20,4 @@ contact:
 repository-code: "https://github.com/PhilippRisius/nbgrader-jupyterquiz"
 abstract: "nbgrader plugin integrating JupyterQuiz quiz functionality with nbgrader."
 license: "MIT"
-version: "0.2.0"
+version: "0.3.0-dev.0"
