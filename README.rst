@@ -21,6 +21,7 @@ directly inside Jupyter notebooks using a simple Markdown syntax.  During
 before the assignment is released.
 
 * Free software: MIT license
+* Documentation: https://nbgrader-jupyterquiz.readthedocs.io
 
 Installation
 ------------
@@ -29,60 +30,10 @@ Installation
 
     pip install nbgrader-jupyterquiz
 
-Quiz authoring syntax
----------------------
+Quick start
+-----------
 
-Write quizzes in Markdown cells using ``#### Quiz`` / ``#### End Quiz``
-delimiters.  Each question begins with ``* (TYPE) "question text"`` and its
-answers follow on indented lines: ``+`` for correct, ``-`` for incorrect.
-
-**Question types**
-
-+--------+-------------------+-------------------------------------------+
-| Type   | Name              | Notes                                     |
-+========+===================+===========================================+
-| ``SC`` | Single choice     | Exactly one correct answer                |
-+--------+-------------------+-------------------------------------------+
-| ``MC`` | Many choice       | One or more correct answers               |
-+--------+-------------------+-------------------------------------------+
-| ``NM`` | Numeric           | Accepts a value, range, or default catch  |
-+--------+-------------------+-------------------------------------------+
-
-**Example cell**
-
-.. code-block:: markdown
-
-    Some introductory text for the exercise.
-
-    #### Quiz
-    * (SC) "What is the capital of France?"
-      + (Correct!) "Paris"
-      - "London"
-      - "Berlin"
-
-    * (NM) "What is the square root of 144?" [0]
-      + <12.0>
-      - (Not quite.) [1.0, 200.0]
-
-    * (MC) "Which of the following are prime numbers?"
-      + "2"
-      + "3"
-      - "4"
-      + "5"
-    #### End Quiz
-
-**Answer syntax**
-
-- ``(feedback text)`` — optional feedback shown after the student answers
-- ``"answer text"`` — the answer label (required for SC/MC)
-- ``<value>`` — exact numeric answer
-- ``[min, max]`` — accepted numeric range
-- ``[precision]`` — number of decimal places to display (NM questions)
-
-nbgrader integration
---------------------
-
-Register ``CreateQuiz`` as a preprocessor in your ``nbgrader_config.py``:
+Register the preprocessor in ``nbgrader_config.py``:
 
 .. code-block:: python
 
@@ -90,13 +41,24 @@ Register ``CreateQuiz`` as a preprocessor in your ``nbgrader_config.py``:
         "nbgrader_jupyterquiz.CreateQuiz",
     ]
 
-During ``nbgrader assign``, quiz regions are extracted from each Markdown cell
-and replaced with interactive ``display_quiz()`` code cells.  Correct answers
-are base64-encoded and embedded in a hidden ``<span>`` so they are not visible
-to students in the released notebook.
+Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
+``#### End Quiz`` delimiters:
 
-The quiz cells must be inside **Manually Graded Task** cells in nbgrader's
-cell toolbar to participate in the grading pipeline.
+.. code-block:: markdown
+
+    #### Quiz
+    * (SC) "What is the capital of France?"
+      + (Correct!) "Paris"
+      - "London"
+      - "Berlin"
+    #### End Quiz
+
+Run ``nbgrader assign`` — quiz regions are replaced with interactive widgets
+and correct answers are hidden from students.
+
+See the `documentation <https://nbgrader-jupyterquiz.readthedocs.io>`_ for the
+full :doc:`quiz syntax <quiz-syntax>`, :doc:`nbgrader pipeline <nbgrader-pipeline>`,
+and :doc:`display options <display-options>`.
 
 Credits
 -------

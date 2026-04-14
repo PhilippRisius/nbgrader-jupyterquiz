@@ -7,6 +7,18 @@ If you don't have `pip`_ installed, this `Python installation guide`_ can guide 
 .. _pip: https://pip.pypa.io
 .. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
 
+Prerequisites
+-------------
+
+**nbgrader-jupyterquiz** is an nbgrader plugin.  The following must be present
+in your environment before using it:
+
+* Python >= 3.10
+* nbgrader >= 0.9
+
+Both are declared as package dependencies and are installed automatically when
+you install **nbgrader-jupyterquiz** via pip.
+
 Stable release
 --------------
 
