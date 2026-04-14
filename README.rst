@@ -57,8 +57,9 @@ Run ``nbgrader assign`` — quiz regions are replaced with interactive widgets
 and correct answers are hidden from students.
 
 See the `documentation <https://nbgrader-jupyterquiz.readthedocs.io>`_ for the
-full :doc:`quiz syntax <quiz-syntax>`, :doc:`nbgrader pipeline <nbgrader-pipeline>`,
-and :doc:`display options <display-options>`.
+full `quiz syntax <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/quiz-syntax.html>`_,
+`nbgrader pipeline <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/nbgrader-pipeline.html>`_,
+and `display options <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/display-options.html>`_.
 
 Credits
 -------
