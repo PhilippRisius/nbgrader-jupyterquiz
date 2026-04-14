@@ -3,11 +3,15 @@ nbgrader-jupyterquiz
 ======================
 
 +----------------------------+-----------------------------------------------------+
+| Versions                   | |pypi|                                              |
++----------------------------+-----------------------------------------------------+
+| Documentation and Support  | |docs| |versions|                                   |
++----------------------------+-----------------------------------------------------+
 | Open Source                | |license| |ossf-score|                              |
 +----------------------------+-----------------------------------------------------+
 | Coding Standards           | |ruff| |pre-commit|                                 |
 +----------------------------+-----------------------------------------------------+
-| Development Status         | |status| |build|                                    |
+| Development Status         | |status| |build| |coveralls|                        |
 +----------------------------+-----------------------------------------------------+
 
 **nbgrader-jupyterquiz** lets instructors embed interactive, gradeable quizzes
@@ -107,6 +111,22 @@ This package was scaffolded with Cookiecutter_ and the
 .. _jupyterquiz: https://github.com/jmshea/jupyterquiz
 .. _Cookiecutter: https://github.com/cookiecutter/cookiecutter
 .. _`Ouranosinc/cookiecutter-pypackage`: https://github.com/Ouranosinc/cookiecutter-pypackage
+
+.. |pypi| image:: https://img.shields.io/pypi/v/nbgrader-jupyterquiz.svg
+        :target: https://pypi.org/project/nbgrader-jupyterquiz/
+        :alt: PyPI
+
+.. |docs| image:: https://readthedocs.org/projects/nbgrader-jupyterquiz/badge/?version=latest
+        :target: https://nbgrader-jupyterquiz.readthedocs.io/en/latest/?version=latest
+        :alt: Documentation Status
+
+.. |versions| image:: https://img.shields.io/pypi/pyversions/nbgrader-jupyterquiz.svg
+        :target: https://pypi.org/project/nbgrader-jupyterquiz/
+        :alt: Supported Python Versions
+
+.. |coveralls| image:: https://coveralls.io/repos/github/PhilippRisius/nbgrader-jupyterquiz/badge.svg
+        :target: https://coveralls.io/github/PhilippRisius/nbgrader-jupyterquiz
+        :alt: Coveralls
 
 .. |build| image:: https://github.com/PhilippRisius/nbgrader-jupyterquiz/actions/workflows/main.yml/badge.svg
         :target: https://github.com/PhilippRisius/nbgrader-jupyterquiz/actions
