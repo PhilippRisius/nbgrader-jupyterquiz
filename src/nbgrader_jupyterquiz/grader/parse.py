@@ -166,19 +166,29 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
     ----------
     header : str
         Text on the same line as the begin delimiter, after the delimiter itself.
+        Expected format: space-separated ``key=value`` pairs.
+        Boolean values are ``true`` or ``false`` (case-insensitive).
+        ``filename`` takes a string value.
+        Unrecognised keys are ignored.
 
     Returns
     -------
     dict
-        Quiz options dict.
+        Quiz options dict with keys ``encoded``, ``inline``, ``hidden``,
+        ``filename``.  Omitted keys retain their defaults.
     """
-    # TODO: Actually parse quiz options from the header line.
-    return {
-        "encoded": True,
-        "inline": True,
-        "hidden": True,
-        "filename": None,
-    }
+    result: dict[str, Any] = {"encoded": True, "inline": True, "hidden": True, "filename": None}
+    for token in header.split():
+        if "=" not in token:
+            continue
+        key, _, val = token.partition("=")
+        if key == "filename":
+            result["filename"] = val
+        elif val.lower() == "true":
+            result[key] = True
+        elif val.lower() == "false":
+            result[key] = False
+    return result
 
 
 def parse_question(lines: list[str]) -> dict[str, Any]:

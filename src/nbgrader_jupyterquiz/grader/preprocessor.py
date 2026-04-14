@@ -79,10 +79,9 @@ class CreateQuiz(NbGraderPreprocessor):
         for cell in nb["cells"]:
             try:
                 quizzes, cell_contents = parse.parse_cell(cell.source, self.begin_quiz_delimiter, self.end_quiz_delimiter)
-            except parse.ParseError as e:
+            except parse.ParseError:
                 cell_contents = cell.source.split("\n")
                 if utils.is_task(cell):
-                    e.add_note("Cell could not be parsed.")
                     raise
                 else:
                     quizzes = []

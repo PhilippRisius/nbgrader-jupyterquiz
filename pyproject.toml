@@ -213,7 +213,7 @@ module = [
   "tests.*"
 ]
 disallow_untyped_defs = false
-disable_error_code = "attr-defined"
+disable_error_code = ["attr-defined", "no-untyped-call"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
