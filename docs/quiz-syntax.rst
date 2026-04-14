@@ -43,15 +43,15 @@ Question types
 Every question line begins with ``*`` followed by a type code in parentheses
 and the question text in double quotes.
 
-+--------+------------------+-------------------------------------------+
-| Code   | Type             | Description                               |
-+========+==================+===========================================+
-| ``SC`` | Single choice    | Exactly one correct answer; radio buttons |
-+--------+------------------+-------------------------------------------+
-| ``MC`` | Many choice      | One or more correct answers; checkboxes   |
-+--------+------------------+-------------------------------------------+
-| ``NM`` | Numeric          | Student enters a number                   |
-+--------+------------------+-------------------------------------------+
++--------+------------------+-----------------------------+
+| Code   | Type             | Description                 |
++========+==================+=============================+
+| ``SC`` | Single choice    | Exactly one correct answer  |
++--------+------------------+-----------------------------+
+| ``MC`` | Many choice      | One or more correct answers |
++--------+------------------+-----------------------------+
+| ``NM`` | Numeric          | Student enters a number     |
++--------+------------------+-----------------------------+
 
 Question options
 ~~~~~~~~~~~~~~~~
@@ -78,7 +78,8 @@ line.
        comparison.  If omitted, exact equality is required.
    * - ``<N>``
      - all
-     - Number of columns for the answer layout (default: 1).
+     - Number of columns for the answer layout.  Default: 2 (CSS default;
+       reduced to 1 automatically on narrow screens).
 
 Answer lines
 ------------
@@ -169,12 +170,33 @@ Numeric question
 Code-block question
 ~~~~~~~~~~~~~~~~~~~
 
+Line breaks inside a code block must be written as the two-character sequence
+``\n`` — the code block must fit on a single source line.
+
 .. code-block:: markdown
 
     #### Quiz
-    * (SC) ```def f(x):
-        return x ** 2```
+    * (SC) ```def f(x):\n    return x ** 2```
       + "It squares its argument."
       - "It doubles its argument."
       - "It returns the absolute value."
     #### End Quiz
+
+Parser limitations
+------------------
+
+The parser uses surrounding characters as field delimiters: ``"..."`` for text
+and answer content, ``(...)`` for feedback, and `` ```...``` `` for code
+blocks.  The following inputs cause a ``ParseError``:
+
+* **Double quotes inside** ``"..."`` **text or answer fields** — the parser
+  splits on the first ``"`` found, truncating the content.  *Workaround:* use
+  a code block (`` ```...``` ``), which does not interpret ``"`` as a
+  delimiter.
+* **A closing parenthesis inside** ``(...)`` **feedback** — the parser splits
+  on the first ``)`` found.
+
+Code blocks (`` ```...``` ``) tolerate ``"``, ``(``, and ``)`` freely;
+embedded triple back-ticks are not supported.
+
+These limitations are planned to be addressed in a future release.

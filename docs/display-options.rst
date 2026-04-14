@@ -24,10 +24,11 @@ The ``ref`` argument determines where question data is loaded from.
      - Description
    * - ``list``
      - A Python list of question dictionaries (see :doc:`quiz-syntax`).
-   * - ``"#element-id"``
-     - A CSS id/class selector.  The element's ``innerHTML`` is parsed as JSON
-       (plain or base64-encoded).  This is how ``CreateQuiz``-generated cells
-       refer to the hidden answer spans.
+   * - ``"#name:tag"``
+     - A CSS identifier.  The element is looked up first by ``id``, then by
+       ``class`` name.  Its ``innerHTML`` is parsed as JSON (plain or
+       base64-encoded).  This is the format ``CreateQuiz``-generated cells use
+       to reference hidden answer spans (e.g. ``"#unique_key:0.0"``).
    * - ``"https://..."``
      - An HTTP/HTTPS URL pointing to a JSON file.
    * - ``"path/to/file.json"``
@@ -82,6 +83,11 @@ Display parameters
      - default palette
      - Colour customisation.  Pass ``"fdsp"`` for the alternate palette, or a
        ``dict`` of CSS variable overrides (see :ref:`display-options:Colour customisation`).
+   * - ``load_js``
+     - ``bool``
+     - ``True``
+     - Whether to inline the JavaScript source.  Set to ``False`` only if the
+       jupyterquiz JavaScript is already loaded on the page.
 
 Colour customisation
 --------------------
@@ -122,8 +128,8 @@ Available CSS variables:
      - ``#fafafa``
      - Answer button background
    * - ``--jq-mc-button-border``
-     - ``#e0e0e0``
-     - Answer button border colour
+     - ``#e0e0e0e0``
+     - Answer button border colour (88 % opacity)
    * - ``--jq-mc-button-inset-shadow``
      - ``#555555``
      - Answer button inset shadow colour
@@ -136,6 +142,9 @@ Available CSS variables:
    * - ``--jq-numeric-input-shadow``
      - ``#999999``
      - Numeric input field shadow colour
+   * - ``--jq-string-bg``
+     - ``#4c1a57``
+     - Background of string-type question boxes
    * - ``--jq-correct-color``
      - ``#009113``
      - Highlight colour for correct answers
@@ -161,3 +170,11 @@ Capturing responses
    **not** saved back to the notebook file automatically.  Persistent answer
    capture integrated with the nbgrader autograde pipeline is planned for a
    future release.
+
+.. note::
+
+   The ``prev_div_id`` argument is the randomly-generated identifier assigned
+   to the quiz container at render time.  It is not directly accessible from
+   Python; it must be read from the rendered HTML (the ``id`` attribute of the
+   outermost ``<div>`` of the quiz widget).  This function is primarily a
+   demonstration of the DOM capture mechanism.

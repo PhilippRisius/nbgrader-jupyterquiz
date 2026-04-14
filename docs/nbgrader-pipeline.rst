@@ -8,8 +8,8 @@ generating the student release, and grading.
 Prerequisites
 -------------
 
-* nbgrader is installed and a course directory is initialised (``nbgrader quickstart``
-  or equivalent).
+* nbgrader >= 0.9 is installed and a course directory is initialised
+  (``nbgrader quickstart`` or equivalent).
 * **nbgrader-jupyterquiz** is installed in the same environment.
 * The :class:`~nbgrader_jupyterquiz.CreateQuiz` preprocessor is registered in
   ``nbgrader_config.py`` (see :ref:`nbgrader-pipeline:Configuration`).
@@ -69,10 +69,10 @@ Distribute the release as usual (``nbgrader release_assignment``,
 Collecting and grading
 ----------------------
 
-Collect submissions as usual.  At this stage, grading must be performed
-**manually** through the nbgrader formgrader or the ``nbgrader feedback``
-command.  Automated answer extraction and autograde support are planned for a
-future release.
+Collect submissions as usual.  At this stage, quizzes are **self-checking
+only** — student answers are displayed in the browser but are not saved to the
+notebook file.  There is currently no mechanism to collect or grade quiz
+answers through nbgrader.  Grading support is planned for a future release.
 
 Configuration
 -------------
@@ -81,9 +81,7 @@ Register ``CreateQuiz`` in your ``nbgrader_config.py``:
 
 .. code-block:: python
 
-    c.GenerateAssignment.preprocessors = [
-        "nbgrader_jupyterquiz.CreateQuiz",
-    ]
+    c.GenerateAssignment.preprocessors.append("nbgrader_jupyterquiz.CreateQuiz")
 
 The preprocessor exposes three configurable traitlets:
 
