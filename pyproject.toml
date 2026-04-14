@@ -62,7 +62,7 @@ docs = [
   "ipython",
   "jupyter_client",
   "nbsphinx >=0.9.8",
-  "sphinx >=8.1.3,<8.2",
+  "sphinx >=8.1.3",
   "sphinx-autobuild",
   "sphinx-codeautolink >=0.17.5",
   "sphinx-copybutton",
