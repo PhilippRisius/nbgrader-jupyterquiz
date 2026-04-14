@@ -8,6 +8,9 @@ Welcome to nbgrader-jupyterquiz's documentation!
    readme
    installation
    usage
+   quiz-syntax
+   nbgrader-pipeline
+   display-options
    contributing
    releasing
    authors
