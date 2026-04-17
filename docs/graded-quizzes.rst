@@ -173,12 +173,15 @@ API
 ===
 
 .. autofunction:: nbgrader_jupyterquiz.grade_quiz
+   :no-index:
 
 .. autoclass:: nbgrader_jupyterquiz.grader.autograde.QuizResult
    :members:
+   :no-index:
 
 .. autoclass:: nbgrader_jupyterquiz.grader.autograde.QuestionResult
    :members:
+   :no-index:
 
 
 Limitations

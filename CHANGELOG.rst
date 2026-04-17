@@ -50,6 +50,15 @@ Changelog
       previous ``SCHEMATA`` dispatch was missing the string type —
       constructing a string-type question dict raised ``KeyError``
       before schema validation.
+    * **Removed** the ``capture_responses`` public API.  It was a browser-
+      DOM-only shim that never integrated with ``nbgrader autograde`` and
+      whose interface was incompatible with caller code (``prev_div_id``
+      was interpolated as a JS expression, not a string).  The graded-
+      quiz workflow is the supported replacement.
+    * Published the two end-to-end validation notebooks
+      (``nb1-geography.ipynb`` and ``nb2-python.ipynb``) as documentation
+      downloads — they exercise every graded/self-check mode and serve
+      as copyable starting templates for instructors.
 
     Fixes
     ^^^^^

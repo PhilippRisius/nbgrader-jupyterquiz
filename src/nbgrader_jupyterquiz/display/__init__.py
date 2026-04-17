@@ -11,7 +11,7 @@ Modifications by Philipp Risius for nbgrader integration and dark-mode
 support.
 """
 
-from .dynamic import capture_responses, display_quiz
+from .dynamic import display_quiz
 
 
-__all__ = ["capture_responses", "display_quiz"]
+__all__ = ["display_quiz"]

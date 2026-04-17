@@ -14,4 +14,4 @@ def test_all_exports_importable():
 
 
 def test_expected_public_api():
-    assert set(nbgrader_jupyterquiz.__all__) == {"CreateQuiz", "display_quiz", "capture_responses", "grade_quiz"}
+    assert set(nbgrader_jupyterquiz.__all__) == {"CreateQuiz", "display_quiz", "grade_quiz"}

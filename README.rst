@@ -53,13 +53,13 @@ Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
 
     #### Quiz
     * (SC) "What is the capital of France?"
-      + (Correct!) "Paris"
+      + "Paris"         (Correct!)
       - "London"
       - "Berlin"
     #### End Quiz
 
-Run ``nbgrader assign`` — quiz regions are replaced with interactive widgets
-and correct answers are hidden from students.
+Run ``nbgrader generate_assignment`` — quiz regions are replaced with
+interactive widgets and correct answers are hidden from students.
 
 See the `documentation <https://nbgrader-jupyterquiz.readthedocs.io>`_ for the
 full `quiz syntax <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/quiz-syntax.html>`_,

@@ -48,7 +48,7 @@ class CreateQuiz(NbGraderPreprocessor):
             """
             Whether to raise an error if cells containing quiz regions are not
             marked as 'Manually Graded Task' cells.  Only disable this if you
-            are using nbgrader assign without the full grading pipeline.
+            are using nbgrader generate_assignment without the full grading pipeline.
             """
         ),
     ).tag(config=True)
@@ -69,9 +69,9 @@ class CreateQuiz(NbGraderPreprocessor):
             at autograde time by ``OverwriteCells``.  A bare
             ``_result.score`` expression at the end of the cell feeds
             nbgrader's partial-credit scoring
-            (``utils.determine_grade``).  The task cell's ``points`` field
-            is forced to 0 so the manually-graded channel does not
-            double-count against the autograded score.
+            (``utils.determine_grade``).  The task cell's own ``points``
+            field is left untouched so it can still be manually graded
+            alongside the auto-graded quiz score.
 
             Disable to opt out of auto-grading and keep ``display_quiz``
             as a plain (non-graded) code cell; in that mode instructors

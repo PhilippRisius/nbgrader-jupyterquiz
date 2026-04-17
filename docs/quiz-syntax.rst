@@ -3,7 +3,8 @@ Quiz Syntax
 ===========
 
 **nbgrader-jupyterquiz** uses a lightweight Markdown syntax to define quizzes
-inside notebook cells.  During ``nbgrader assign``, the :class:`~nbgrader_jupyterquiz.CreateQuiz`
+inside notebook cells.  During ``nbgrader generate_assignment``, the
+:class:`~nbgrader_jupyterquiz.CreateQuiz`
 preprocessor converts these regions into interactive quiz cells powered by the
 bundled jupyterquiz display layer.
 
