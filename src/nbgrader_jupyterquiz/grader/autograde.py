@@ -247,9 +247,13 @@ def _fmt_pts(value: float) -> str:
     """
     Format a point value for display, collapsing binary-float noise.
 
-    Rounds to two decimal places and strips trailing zeros so that
+    Rounds to three decimal places and strips trailing zeros so that
     accumulation artefacts such as ``0.3 + 0.3 + 0.4 ==
     0.9999999999999999`` don't bleed into the visible review text.
+    Three decimals preserve common fractional weights exactly —
+    halves (0.5), quarters (0.25), eighths (0.125), tenths (0.1) —
+    which a two-decimal rounding would mangle (``round(0.125, 2) ==
+    0.12`` under banker's rounding).
 
     Parameters
     ----------
@@ -259,9 +263,9 @@ def _fmt_pts(value: float) -> str:
     Returns
     -------
     str
-        Canonical short textual form, e.g. ``"1"``, ``"0.5"``, ``"1.25"``.
+        Canonical short textual form, e.g. ``"1"``, ``"0.5"``, ``"0.125"``.
     """
-    rounded = round(float(value), 2)
+    rounded = round(float(value), 3)
     if rounded == int(rounded):
         return str(int(rounded))
     return f"{rounded:g}"

@@ -79,10 +79,12 @@ class Question {
                 this.qDiv.appendChild(textSpan);
                 const badge = document.createElement('span');
                 badge.className = 'jq-points-badge';
-                // Round to 2 decimals and strip trailing zeros so that float
-                // accumulation artefacts (e.g. 0.3 + 0.3 + 0.4 = 0.999…)
-                // don't bleed into the visible badge text.
-                const pts = Number(Number(qa.points).toFixed(2));
+                // Round to 3 decimals and strip trailing zeros so that
+                // float accumulation artefacts (e.g. 0.3 + 0.3 + 0.4 =
+                // 0.999…) don't bleed into the visible badge text, while
+                // still preserving eighths (0.125) and tenths (0.1)
+                // exactly.
+                const pts = Number(Number(qa.points).toFixed(3));
                 badge.textContent = `${pts} ${pts === 1 ? 'pt' : 'pts'}`;
                 this.qDiv.appendChild(badge);
             } else {
