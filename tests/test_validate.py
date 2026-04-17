@@ -63,6 +63,38 @@ def test_valid_numeric_range():
     )
 
 
+def test_valid_string_exact():
+    validate_question(
+        {
+            "type": "string",
+            "question": "Capital of France?",
+            "answers": [
+                {"answer": "Paris", "correct": True},
+                {"type": "default", "feedback": "Nope."},
+            ],
+        }
+    )
+
+
+def test_valid_string_fuzzy_and_case():
+    """Optional ``match_case`` and ``fuzzy_threshold`` are accepted."""
+    validate_question(
+        {
+            "type": "string",
+            "question": "Spell mousse.",
+            "points": 0.5,
+            "answers": [
+                {
+                    "answer": "mousse",
+                    "correct": True,
+                    "match_case": False,
+                    "fuzzy_threshold": 0.8,
+                },
+            ],
+        }
+    )
+
+
 # --- Invalid questions raise ---
 
 

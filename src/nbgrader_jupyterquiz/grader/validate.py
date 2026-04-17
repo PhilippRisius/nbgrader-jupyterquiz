@@ -91,12 +91,53 @@ class Schema(Enum):
             },
         },
     }
+    STR = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://github.com/jmshea/jupyterquiz/str_schema.json",
+        "title": "JupyterQuiz String Question",
+        "description": "Schema for String (free-text) Questions in JupyterQuiz",
+        "type": "object",
+        "properties": {
+            "question": {"type": "string"},
+            "type": {"type": "string", "pattern": "string"},
+            "points": {"type": "number", "exclusiveMinimum": 0},
+            "hide": {"type": "boolean"},
+            "answers": {
+                "type": "array",
+                "items": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "answer": {"type": "string"},
+                                "correct": {"type": "boolean"},
+                                "match_case": {"type": "boolean"},
+                                "fuzzy_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+                                "feedback": {"type": "string"},
+                            },
+                            "required": ["answer", "correct"],
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string", "pattern": "default"},
+                                "feedback": {"type": "string"},
+                            },
+                            "required": ["type", "feedback"],
+                        },
+                    ],
+                },
+            },
+        },
+        "required": ["type", "question", "answers"],
+    }
 
 
 SCHEMATA = {
     "many_choice": "MC",
     "multiple_choice": "MC",
     "numeric": "NUM",
+    "string": "STR",
 }
 
 
