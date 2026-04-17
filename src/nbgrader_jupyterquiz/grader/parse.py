@@ -305,13 +305,31 @@ def line_to_question(line: str) -> dict[str, Any]:
     """
     question_types = {"NM": "numeric", "SC": "multiple_choice", "MC": "many_choice"}
 
+    def _parse_points(raw: str) -> int | float:
+        """
+        Parse a ``{N}`` points marker, preserving integers when possible.
+
+        Parameters
+        ----------
+        raw : str
+            Contents between the ``{`` and ``}`` delimiters.
+
+        Returns
+        -------
+        int or float
+            ``int`` for whole-number markers (``{3}``); ``float`` for
+            fractional markers (``{0.5}``).
+        """
+        value = float(raw)
+        return int(value) if value.is_integer() else value
+
     components = {
         "type": ("(", ")", lambda t: question_types.get(t)),
         "question": ('"', '"', str),
         "code": ("```", "```", lambda code: code.replace(r"\n", "\n")),
         "precision": ("[", "]", int),
         "answer_cols": ("<", ">", int),
-        "points": ("{", "}", int),
+        "points": ("{", "}", _parse_points),
     }
 
     return parse_line(line.lstrip(" *"), **components)

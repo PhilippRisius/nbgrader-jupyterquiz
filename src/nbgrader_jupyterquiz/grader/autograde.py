@@ -58,25 +58,29 @@ class QuestionResult:
         return str(self.question.get("type", "unknown"))
 
     @property
-    def points(self) -> int:
+    def points(self) -> float:
         """
         Return the maximum points for this question (defaults to 1).
 
         Returns
         -------
-        int
-            Positive integer point weight.
+        float
+            Positive point weight.  Integer values (from ``{N}``) come
+            through as ``int``; fractional values (``{0.5}``) as ``float``.
+            The return type is widened to ``float`` for downstream
+            arithmetic but callers that know the quiz uses integer
+            weights can ``int()`` the result.
         """
-        return int(self.question.get("points", 1) or 1)
+        return self.question.get("points", 1) or 1
 
     @property
-    def earned(self) -> int:
+    def earned(self) -> float:
         """
         Compute the points earned on this question (all-or-nothing per question).
 
         Returns
         -------
-        int
+        float
             ``self.points`` if correct, else 0.
         """
         return self.points if self.correct else 0
@@ -102,25 +106,26 @@ class QuizResult:
     details: list[QuestionResult]
 
     @property
-    def max_score(self) -> int:
+    def max_score(self) -> float:
         """
         Compute the sum of per-question point values.
 
         Returns
         -------
-        int
-            Total points this quiz can yield.
+        float
+            Total points this quiz can yield.  ``int`` when every
+            question carries an integer weight.
         """
         return sum(d.points for d in self.details)
 
     @property
-    def score(self) -> int:
+    def score(self) -> float:
         """
         Compute the sum of per-question points earned.
 
         Returns
         -------
-        int
+        float
             Total points the student earned on this quiz.
         """
         return sum(d.earned for d in self.details)
@@ -186,10 +191,10 @@ class QuizResult:
         from html import escape  # noqa: PLC0415
 
         parts = [_REVIEW_CSS, '<div class="jq-review">']
-        parts.append(f'<div class="jq-review-score">Your score: {self.score} / {self.max_score}</div>')
+        parts.append(f'<div class="jq-review-score">Your score: {_fmt_pts(self.score)} / {_fmt_pts(self.max_score)}</div>')
         for d in self.details:
             qtext = escape(d.question.get("question", "") or "")
-            header_points = f' <span class="jq-review-ptag">{d.earned}/{d.points} pts</span>'
+            header_points = f' <span class="jq-review-ptag">{_fmt_pts(d.earned)}/{_fmt_pts(d.points)} pts</span>'
             parts.append(f'<div class="jq-review-question"><div class="jq-review-qhead">Q{d.qnum + 1}. {qtext}{header_points}</div>')
             qtype = d.question_type
             if qtype in ("multiple_choice", "many_choice"):
@@ -236,6 +241,30 @@ _REVIEW_CSS = """<style>
                   padding: 1px 8px; border-radius: 10px;
                   background: #e7e9ec; color: #333; }
 </style>"""
+
+
+def _fmt_pts(value: float) -> str:
+    """
+    Format a point value for display, collapsing binary-float noise.
+
+    Rounds to two decimal places and strips trailing zeros so that
+    accumulation artefacts such as ``0.3 + 0.3 + 0.4 ==
+    0.9999999999999999`` don't bleed into the visible review text.
+
+    Parameters
+    ----------
+    value : float
+        Point value to format.
+
+    Returns
+    -------
+    str
+        Canonical short textual form, e.g. ``"1"``, ``"0.5"``, ``"1.25"``.
+    """
+    rounded = round(float(value), 2)
+    if rounded == int(rounded):
+        return str(int(rounded))
+    return f"{rounded:g}"
 
 
 def _extract_picked(recorded: Any) -> list[str]:

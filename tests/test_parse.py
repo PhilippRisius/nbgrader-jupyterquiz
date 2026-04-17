@@ -370,6 +370,23 @@ def test_question_points_propagate_default_to_siblings():
     assert quizzes[0].questions[1]["points"] == 1
 
 
+def test_question_points_fractional():
+    """
+    Fractional point values like {0.5} are preserved as floats; whole
+    numbers stay as ints to keep the embedded JSON tidy.
+    """
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz\n* (SC) {0.5} "Half point"\n  + "A"\n  - "B"\n* (SC) {2} "Two points"\n  + "A"\n  - "B"\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    half = quizzes[0].questions[0]["points"]
+    two = quizzes[0].questions[1]["points"]
+    assert half == 0.5
+    assert isinstance(half, float)
+    assert two == 2
+    assert isinstance(two, int)
+
+
 def test_question_points_propagation_is_per_quiz_not_per_notebook():
     """
     Two quiz regions in one cell — propagation only affects the quiz

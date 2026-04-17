@@ -79,7 +79,11 @@ class Question {
                 this.qDiv.appendChild(textSpan);
                 const badge = document.createElement('span');
                 badge.className = 'jq-points-badge';
-                badge.textContent = `${qa.points} ${qa.points === 1 ? 'pt' : 'pts'}`;
+                // Round to 2 decimals and strip trailing zeros so that float
+                // accumulation artefacts (e.g. 0.3 + 0.3 + 0.4 = 0.999…)
+                // don't bleed into the visible badge text.
+                const pts = Number(Number(qa.points).toFixed(2));
+                badge.textContent = `${pts} ${pts === 1 ? 'pt' : 'pts'}`;
                 this.qDiv.appendChild(badge);
             } else {
                 this.qDiv.innerHTML = jaxify(qa.question);

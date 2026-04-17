@@ -110,9 +110,12 @@ line.
        reduced to 1 automatically on narrow screens).
    * - ``{N}``
      - all (graded quizzes)
-     - Points the question is worth.  Default: 1.  Shown to the student as
-       a small badge next to the question text (only when ``N ≠ 1``).  The
-       autograder awards ``N`` points if the answer is fully correct, zero
+     - Points the question is worth.  ``N`` may be any positive number,
+       including fractions (``{0.5}``).  Default: 1.  Shown to the
+       student as a small badge next to the question text; when at least
+       one question in a quiz carries an explicit ``{N}`` marker, every
+       sibling gets a badge too (unweighted questions as ``1 pt``).  The
+       autograder awards ``N`` points on a correct answer and zero
        otherwise; the cell's total max_score is the sum over its
        questions.
 
