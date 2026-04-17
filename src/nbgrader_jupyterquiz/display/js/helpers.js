@@ -68,7 +68,28 @@ class Question {
         this.qDiv = document.createElement('div');
         this.qDiv.id = `quizQn${id}${index}`;
         if (qa.question) {
-            this.qDiv.innerHTML = jaxify(qa.question);
+            // Points badge.  The parser propagates ``points: 1`` onto every
+            // question in a quiz where any question has an explicit ``{N}``
+            // marker, so either every sibling has a badge or none do.
+            if (qa.points !== undefined) {
+                this.qDiv.classList.add('jq-question-row');
+                const textSpan = document.createElement('span');
+                textSpan.className = 'jq-question-text';
+                textSpan.innerHTML = jaxify(qa.question);
+                this.qDiv.appendChild(textSpan);
+                const badge = document.createElement('span');
+                badge.className = 'jq-points-badge';
+                // Round to 3 decimals and strip trailing zeros so that
+                // float accumulation artefacts (e.g. 0.3 + 0.3 + 0.4 =
+                // 0.999…) don't bleed into the visible badge text, while
+                // still preserving eighths (0.125) and tenths (0.1)
+                // exactly.
+                const pts = Number(Number(qa.points).toFixed(3));
+                badge.textContent = `${pts} ${pts === 1 ? 'pt' : 'pts'}`;
+                this.qDiv.appendChild(badge);
+            } else {
+                this.qDiv.innerHTML = jaxify(qa.question);
+            }
             this.outerqDiv.appendChild(this.qDiv);
         }
         // code block

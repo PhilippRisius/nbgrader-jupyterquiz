@@ -251,7 +251,7 @@ def test_non_inline_mode(preprocessor, resources):
     assert "<span" not in nb.cells[0].source
     assert "0.0=" not in nb.cells[0].source
     # display_quiz references the notebook name
-    assert 'display_quiz("#test-nb:0.0")' in nb.cells[1].source
+    assert 'display_quiz("#test-nb:0.0"' in nb.cells[1].source
 
 
 def test_encoded_content_is_valid_base64(preprocessor, resources):
@@ -265,3 +265,317 @@ def test_encoded_content_is_valid_base64(preprocessor, resources):
     decoded = base64.b64decode(encoded).decode("utf-8")
     questions = json.loads(decoded)
     assert questions[0]["type"] == "multiple_choice"
+
+
+# ---------------------------------------------------------------------------
+# Group G — grade_id propagation (v0.4.0+)
+# ---------------------------------------------------------------------------
+
+
+def _graded_task_cell(source, grade_id):
+    cell = nbformat.v4.new_markdown_cell(source=source)
+    cell.metadata["nbgrader"] = {"task": True, "grade_id": grade_id}
+    return cell
+
+
+def test_grade_id_passed_into_display_quiz(preprocessor, resources):
+    nb = make_notebook(_graded_task_cell(QUIZ_SOURCE, "quiz-cell-1"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    # The merged graded cell carries a suffixed grade_id so it doesn't
+    # collide with the task cell's grade_id.
+    assert "grade_id='quiz-cell-1-autograded'" in nb.cells[1].source
+
+
+def test_grade_id_none_when_host_has_no_grade_id(preprocessor, resources):
+    # task_cell() helper sets only {"task": True} — no grade_id.
+    nb = make_notebook(task_cell(QUIZ_SOURCE))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert "grade_id=None" in nb.cells[1].source
+
+
+def test_grade_id_shared_across_multi_quiz_cell(preprocessor, resources):
+    # Two quiz regions in one task cell → two merged cells, each with its
+    # own suffixed grade_id (uniquified per region).
+    nb = make_notebook(_graded_task_cell(TWO_QUIZ_SOURCE, "quiz-twin"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert "grade_id='quiz-twin-autograded-0'" in nb.cells[1].source
+    assert "grade_id='quiz-twin-autograded-1'" in nb.cells[2].source
+
+
+# ---------------------------------------------------------------------------
+# Group H — Auto-generated autograder test cells (v0.4.0+)
+# ---------------------------------------------------------------------------
+
+
+def test_graded_cell_merges_display_and_hidden_tests(preprocessor, resources):
+    """
+    In graded mode, the single code cell carries both display_quiz() and
+    a ### BEGIN HIDDEN TESTS block that invokes grade_quiz with an embedded
+    answer key.
+    """
+    nb = make_notebook(_graded_task_cell(QUIZ_SOURCE, "quiz-1"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    # cells: [task_md, merged_graded_cell]
+    assert len(nb.cells) == 2
+    merged = nb.cells[1]
+    assert merged.cell_type == "code"
+    # display_quiz at the top of the cell (visible in the release)
+    assert "display_quiz(" in merged.source
+    # hidden tests at the bottom (stripped in release, restored at autograde)
+    assert "### BEGIN HIDDEN TESTS" in merged.source
+    assert "### END HIDDEN TESTS" in merged.source
+    # answer key embedded inline; grade_quiz invoked with it
+    assert "_questions = [" in merged.source
+    assert "grade_quiz('quiz-1-autograded', questions=_questions)" in merged.source
+    # Partial credit: bare ``_result.score`` at the end makes the cell's
+    # execute_result feed nbgrader's determine_grade().
+    assert merged.source.rstrip().endswith("### END HIDDEN TESTS")
+    assert "_result.score\n" in merged.source
+    # Feedback-time review is emitted so the student sees their answers
+    # and the correct ones in the autograded / feedback notebook.
+    assert "_result.display_review()" in merged.source
+    # cell is now the nbgrader-tracked graded cell itself
+    assert merged.metadata["nbgrader"]["grade"] is True
+    assert merged.metadata["nbgrader"]["solution"] is False
+    assert merged.metadata["nbgrader"]["grade_id"] == "quiz-1-autograded"
+    assert merged.metadata["nbgrader"]["locked"] is True
+
+
+def test_no_hidden_tests_when_host_has_no_grade_id(preprocessor, resources):
+    # task_cell() helper sets only {"task": True} — no grade_id → no grading.
+    nb = make_notebook(task_cell(QUIZ_SOURCE))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert len(nb.cells) == 2
+    # plain display cell, no hidden tests
+    assert "### BEGIN HIDDEN TESTS" not in nb.cells[1].source
+    assert "nbgrader" not in nb.cells[1].metadata
+
+
+def test_merged_cell_points_independent_of_task_points(preprocessor, resources):
+    """
+    Cell points = one per question (from quiz questions); task-cell
+    points are preserved for manual grading of whatever isn't the
+    auto-graded quiz.
+    """
+    cell = _graded_task_cell(QUIZ_SOURCE, "quiz-points")
+    cell.metadata["nbgrader"]["points"] = 5
+    nb = make_notebook(cell)
+    nb, _ = preprocessor.preprocess(nb, resources)
+    merged = nb.cells[1]
+    assert merged.metadata["nbgrader"]["points"] == 1
+    # Task-cell points are NOT clobbered — they remain available for
+    # manual grading of the surrounding task content.
+    assert nb.cells[0].metadata["nbgrader"]["points"] == 5
+
+
+def test_merged_cell_points_multiple_regions(preprocessor, resources):
+    """
+    Two regions → each cell's points = number of questions in its region.
+    TWO_QUIZ_SOURCE has one question per region → 1 pt each.
+    """
+    nb = make_notebook(_graded_task_cell(TWO_QUIZ_SOURCE, "quiz-multi-pts"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert nb.cells[1].metadata["nbgrader"]["points"] == 1
+    assert nb.cells[2].metadata["nbgrader"]["points"] == 1
+
+
+def test_auto_generate_tests_can_be_disabled(resources):
+    pp = CreateQuiz()
+    pp.auto_generate_tests = False
+    nb = make_notebook(_graded_task_cell(QUIZ_SOURCE, "quiz-no-auto"))
+    nb, _ = pp.preprocess(nb, resources)
+    # cells: [task_md, plain_display_quiz] — no hidden tests, no graded cell
+    assert len(nb.cells) == 2
+    assert "### BEGIN HIDDEN TESTS" not in nb.cells[1].source
+    assert "nbgrader" not in nb.cells[1].metadata
+
+
+def test_multiple_quiz_regions_each_get_own_graded_cell(preprocessor, resources):
+    nb = make_notebook(_graded_task_cell(TWO_QUIZ_SOURCE, "quiz-multi"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    # cells: [task_md, merged_0, merged_1] — one merged cell per region
+    assert len(nb.cells) == 3
+    # Each merged cell has its own uniquified grade_id and hidden tests.
+    assert "grade_quiz('quiz-multi-autograded-0'" in nb.cells[1].source
+    assert "grade_quiz('quiz-multi-autograded-1'" in nb.cells[2].source
+    assert nb.cells[1].metadata["nbgrader"]["grade_id"] == "quiz-multi-autograded-0"
+    assert nb.cells[2].metadata["nbgrader"]["grade_id"] == "quiz-multi-autograded-1"
+
+
+# ---------------------------------------------------------------------------
+# Group J — Per-question points ({N} syntax) (v0.4.0+)
+# ---------------------------------------------------------------------------
+
+
+def test_cell_points_sum_of_per_question_points(preprocessor, resources):
+    """Cell max_points = sum of each question's ``points`` field (default 1)."""
+    source = (
+        "#### Quiz encoded=false\n"
+        '* (SC) {3} "First, worth 3"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        '* (SC) "Second, default 1"\n'
+        '  + "X"\n'
+        '  - "Y"\n'
+        '* (NM) {5} "Third, worth 5"\n'
+        "  + <42>\n"
+        "#### End Quiz"
+    )
+    nb = make_notebook(_graded_task_cell(source, "quiz-weighted"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    merged = nb.cells[1]
+    assert merged.metadata["nbgrader"]["points"] == 9  # 3 + 1 + 5
+
+
+def test_cell_points_all_default_when_no_markers(preprocessor, resources):
+    """No {N} marker on any question → cell points = len(questions)."""
+    source = '#### Quiz\n* (SC) "Q1"\n  + "A"\n  - "B"\n* (SC) "Q2"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "quiz-unweighted"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert nb.cells[1].metadata["nbgrader"]["points"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Group I — hide_correctness auto-enabled for graded quizzes (v0.4.0+)
+# ---------------------------------------------------------------------------
+
+
+def test_graded_quiz_auto_enables_hide_correctness(preprocessor, resources):
+    """Task cell with grade_id → every MC answer gets hide:true in the rendered JSON."""
+    source = '#### Quiz encoded=false\n* (SC) "What is 2+2?"\n  + "4"\n  - "5"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "graded-hide"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    # The hidden span in the task cell carries the rendered JSON.
+    task_src = nb.cells[0].source
+    assert '"hide": true' in task_src
+
+
+def test_non_graded_quiz_does_not_auto_enable_hide_correctness(preprocessor, resources):
+    """Task cell without grade_id → no hide: true in the rendered JSON."""
+    source = '#### Quiz encoded=false\n* (SC) "What is 2+2?"\n  + "4"\n  - "5"\n#### End Quiz'
+    nb = make_notebook(task_cell(source))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"hide"' not in task_src
+
+
+def test_graded_quiz_explicit_opt_out_preserved(preprocessor, resources):
+    """Instructor can force ``hide_correctness=false`` on a graded quiz."""
+    source = '#### Quiz encoded=false hide_correctness=false\n* (SC) "What is 2+2?"\n  + "4"\n  - "5"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "graded-opt-out"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"hide"' not in task_src
+
+
+# ---------------------------------------------------------------------------
+# Group K — Per-quiz ``graded=false`` opt-out (v0.4.0+)
+# ---------------------------------------------------------------------------
+
+
+def test_graded_false_emits_plain_display_cell(preprocessor, resources):
+    """
+    A ``graded=false`` quiz inside a graded task cell emits a plain
+    display_quiz code cell — no nbgrader metadata, no hidden tests.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "Self-check"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "manual-grade"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    merged = nb.cells[1]
+    assert "### BEGIN HIDDEN TESTS" not in merged.source
+    assert "grade_quiz(" not in merged.source
+    assert "nbgrader" not in merged.metadata
+
+
+def test_graded_false_preserves_task_points(preprocessor, resources):
+    """
+    Opting a quiz out of auto-grading must not touch the task cell's
+    manual-grading points.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "Self-check"\n  + "A"\n  - "B"\n#### End Quiz'
+    cell = _graded_task_cell(source, "manual-7pt")
+    cell.metadata["nbgrader"]["points"] = 7
+    nb = make_notebook(cell)
+    nb, _ = preprocessor.preprocess(nb, resources)
+    assert nb.cells[0].metadata["nbgrader"]["points"] == 7
+
+
+def test_graded_false_default_shows_correctness(preprocessor, resources):
+    """
+    An ungraded quiz renders with correctness feedback by default —
+    no ``hide: true`` stamped on answers.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "Self-check"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "self-check"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"hide"' not in task_src
+
+
+def test_graded_false_with_explicit_hide_correctness_true(preprocessor, resources):
+    """
+    ``graded=false hide_correctness=true`` is a supported combination
+    (quiz without grading but also without revealing answers).
+    """
+    source = '#### Quiz encoded=false graded=false hide_correctness=true\n* (SC) "Self-study"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "study-mode"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    # hide_correctness=true → hide stamped
+    assert '"hide": true' in task_src
+    # graded=false → plain display cell (no hidden tests / nbgrader metadata)
+    merged = nb.cells[1]
+    assert "### BEGIN HIDDEN TESTS" not in merged.source
+    assert "nbgrader" not in merged.metadata
+
+
+def test_mixed_graded_and_ungraded_regions_in_one_cell(preprocessor, resources):
+    """A task cell can carry a graded quiz and a self-check side by side."""
+    source = (
+        "#### Quiz encoded=false\n"
+        '* (SC) "Graded Q"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        "#### End Quiz\n"
+        "#### Quiz encoded=false graded=false\n"
+        '* (SC) "Self-check Q"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        "#### End Quiz"
+    )
+    nb = make_notebook(_graded_task_cell(source, "mixed"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    # cells: [task_md, graded_merged, ungraded_plain]
+    assert len(nb.cells) == 3
+    # First merged cell is the graded one.
+    assert "### BEGIN HIDDEN TESTS" in nb.cells[1].source
+    assert nb.cells[1].metadata["nbgrader"]["grade"] is True
+    # Second is plain, no nbgrader grade.
+    assert "### BEGIN HIDDEN TESTS" not in nb.cells[2].source
+    assert "nbgrader" not in nb.cells[2].metadata
+
+
+def test_graded_false_no_points_badge_without_explicit_marker(preprocessor, resources):
+    """
+    Ungraded quizzes without ``{N}`` markers don't render points
+    badges — the rendered JSON has no ``points`` field on any
+    question, so the JS renderer emits no badge.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "No marker"\n  + "A"\n  - "B"\n* (SC) "Also no marker"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "no-badges"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"points"' not in task_src
+
+
+def test_graded_false_with_explicit_points_marker_renders_badge(preprocessor, resources):
+    """
+    If the instructor explicitly writes ``{N}`` on an ungraded
+    quiz question, the JSON carries ``points`` so the JS renders the
+    badge.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) {2} "Explicit-points self-check"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "explicit-pts"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"points": 2' in task_src

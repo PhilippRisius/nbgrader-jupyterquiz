@@ -37,14 +37,14 @@ the full authoring syntax.
       - "Lists are unordered and mutable."
     #### End Quiz
 
-Running ``nbgrader assign``
----------------------------
+Running ``nbgrader generate_assignment``
+----------------------------------------
 
 Run the standard nbgrader assignment generation command:
 
 .. code-block:: console
 
-    nbgrader assign <assignment-name>
+    nbgrader generate_assignment <assignment-name>
 
 ``CreateQuiz`` runs as part of the ``GenerateAssignment`` preprocessor pipeline.
 For each quiz region it:
@@ -77,11 +77,24 @@ answers through nbgrader.  Grading support is planned for a future release.
 Configuration
 -------------
 
-Register ``CreateQuiz`` in your ``nbgrader_config.py``:
+Register ``CreateQuiz`` at the **front** of your ``GenerateAssignment``
+preprocessor list in ``nbgrader_config.py``:
 
 .. code-block:: python
 
-    c.GenerateAssignment.preprocessors.append("nbgrader_jupyterquiz.CreateQuiz")
+    c.GenerateAssignment.preprocessors.insert(0, "nbgrader_jupyterquiz.CreateQuiz")
+
+It must run before ``SaveCells`` so the auto-generated autograder cells
+are registered in the gradebook, and before ``ClearHiddenTests`` so the
+grading body is properly stripped from the release.  Appending to the end
+of the list (``.append(...)``) causes autograde to fail with checksum and
+grade_id validation errors.
+
+When the host Manually Graded Task cell has an nbgrader ``grade_id``,
+``CreateQuiz`` promotes the quiz to graded mode: correctness feedback
+is hidden, responses are persisted to a sidecar file, and the cell is
+autograded at submission time.  See :doc:`graded-quizzes` for the full
+workflow.
 
 The preprocessor exposes three configurable traitlets:
 
@@ -101,8 +114,8 @@ The preprocessor exposes three configurable traitlets:
    * - ``enforce_metadata``
      - ``True``
      - Raise an error if a quiz region is found outside a *Manually Graded Task*
-       cell.  Disable only if you are using ``nbgrader assign`` without the full
-       grading pipeline.
+       cell.  Disable only if you are using ``nbgrader generate_assignment``
+       without the full grading pipeline.
 
 To override a traitlet, add it to ``nbgrader_config.py``:
 

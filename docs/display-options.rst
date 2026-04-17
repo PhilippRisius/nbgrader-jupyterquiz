@@ -5,8 +5,8 @@ Display Options
 In student notebooks, quizzes are rendered by
 :func:`~nbgrader_jupyterquiz.display_quiz`.  This function is called
 automatically by the code cells that :class:`~nbgrader_jupyterquiz.CreateQuiz`
-generates during ``nbgrader assign``, but you can also call it directly when
-working with quizzes outside the nbgrader pipeline.
+generates during ``nbgrader generate_assignment``, but you can also call it
+directly when working with quizzes outside the nbgrader pipeline.
 
 .. autofunction:: nbgrader_jupyterquiz.display_quiz
    :no-index:
@@ -161,20 +161,7 @@ Available CSS variables:
 Capturing responses
 -------------------
 
-.. autofunction:: nbgrader_jupyterquiz.capture_responses
-   :no-index:
-
-.. note::
-
-   ``capture_responses`` updates the browser DOM only.  Student answers are
-   **not** saved back to the notebook file automatically.  Persistent answer
-   capture integrated with the nbgrader autograde pipeline is planned for a
-   future release.
-
-.. note::
-
-   The ``prev_div_id`` argument is the randomly-generated identifier assigned
-   to the quiz container at render time.  It is not directly accessible from
-   Python; it must be read from the rendered HTML (the ``id`` attribute of the
-   outermost ``<div>`` of the quiz widget).  This function is primarily a
-   demonstration of the DOM capture mechanism.
+Persistent answer capture for graded quizzes is handled automatically by
+placing the quiz inside a Manually Graded Task cell — the preprocessor
+wires up the recorder and autograder for you.  See
+:doc:`graded-quizzes`.

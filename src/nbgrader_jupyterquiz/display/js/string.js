@@ -138,6 +138,16 @@ function check_string(ths, event) {
             printResponses(responsesContainer);
         }
 
+        // Sidecar recorder (no-op without data-grade-id)
+        var __gradeId = outerContainer.dataset.gradeId;
+        if (__gradeId) {
+            var __qnum = document.getElementById("quizWrap" + id).dataset.qnum;
+            recordResponse(__gradeId, __qnum, {
+                type: "string",
+                value: submission,
+            });
+        }
+
         if (typeof MathJax != 'undefined') {
             var version = MathJax.version;
             if (version[0] == "2") {

@@ -16,9 +16,16 @@ nbgrader-jupyterquiz
 
 **nbgrader-jupyterquiz** lets instructors embed interactive, gradeable quizzes
 directly inside Jupyter notebooks using a simple Markdown syntax.  During
-``nbgrader assign`` the quiz source is transformed into interactive quiz cells
-(powered by a fork of `jupyterquiz`_); correct answers are hidden from students
-before the assignment is released.
+``nbgrader generate_assignment`` the quiz source is transformed into interactive
+quiz cells (powered by a fork of `jupyterquiz`_); correct answers are hidden
+from students before the assignment is released.
+
+Starting in v0.4.0, quizzes placed in an nbgrader **Manually Graded Task**
+cell are automatically graded: student responses are persisted to a
+``responses.json`` sidecar as they answer, and ``nbgrader autograde``
+evaluates them with partial-credit support.  Per-question points
+(including fractions like ``{0.5}``) are supported.  See the
+`graded-quizzes docs`_ for the full workflow.
 
 * Free software: MIT license
 * Documentation: https://nbgrader-jupyterquiz.readthedocs.io
@@ -33,13 +40,11 @@ Installation
 Quick start
 -----------
 
-Register the preprocessor in ``nbgrader_config.py``:
+Register the preprocessor at the front of your ``nbgrader_config.py``:
 
 .. code-block:: python
 
-    c.GenerateAssignment.preprocessors = [
-        "nbgrader_jupyterquiz.CreateQuiz",
-    ]
+    c.GenerateAssignment.preprocessors.insert(0, "nbgrader_jupyterquiz.CreateQuiz")
 
 Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
 ``#### End Quiz`` delimiters:
@@ -48,18 +53,22 @@ Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
 
     #### Quiz
     * (SC) "What is the capital of France?"
-      + (Correct!) "Paris"
+      + "Paris"         (Correct!)
       - "London"
       - "Berlin"
     #### End Quiz
 
-Run ``nbgrader assign`` — quiz regions are replaced with interactive widgets
-and correct answers are hidden from students.
+Run ``nbgrader generate_assignment`` — quiz regions are replaced with
+interactive widgets and correct answers are hidden from students.
 
 See the `documentation <https://nbgrader-jupyterquiz.readthedocs.io>`_ for the
 full `quiz syntax <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/quiz-syntax.html>`_,
 `nbgrader pipeline <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/nbgrader-pipeline.html>`_,
+`graded quizzes`_,
 and `display options <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/display-options.html>`_.
+
+.. _graded-quizzes docs: https://nbgrader-jupyterquiz.readthedocs.io/en/latest/graded-quizzes.html
+.. _graded quizzes: https://nbgrader-jupyterquiz.readthedocs.io/en/latest/graded-quizzes.html
 
 Credits
 -------

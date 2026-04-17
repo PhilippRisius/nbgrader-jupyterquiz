@@ -17,6 +17,7 @@ class Schema(Enum):
         "type": "object",
         "properties": {
             "question": {"type": "string"},
+            "points": {"type": "number", "exclusiveMinimum": 0},
             "type": {
                 "type": "string",
                 "pattern": "multiple_choice|many_choice",
@@ -30,6 +31,7 @@ class Schema(Enum):
                         "correct": {"type": "boolean"},
                         "feedback": {"type": "string"},
                         "answer_cols": {"type": "number"},
+                        "hide": {"type": "boolean"},
                     },
                     "required": ["answer", "correct"],
                 },
@@ -48,6 +50,8 @@ class Schema(Enum):
             "question": {"type": "string"},
             "type": {"type": "string", "pattern": "numeric"},
             "precision": {"type": "integer"},
+            "points": {"type": "number", "exclusiveMinimum": 0},
+            "hide": {"type": "boolean"},
             "answers": {
                 "type": "array",
                 "items": {
@@ -87,12 +91,53 @@ class Schema(Enum):
             },
         },
     }
+    STR = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://github.com/jmshea/jupyterquiz/str_schema.json",
+        "title": "JupyterQuiz String Question",
+        "description": "Schema for String (free-text) Questions in JupyterQuiz",
+        "type": "object",
+        "properties": {
+            "question": {"type": "string"},
+            "type": {"type": "string", "pattern": "string"},
+            "points": {"type": "number", "exclusiveMinimum": 0},
+            "hide": {"type": "boolean"},
+            "answers": {
+                "type": "array",
+                "items": {
+                    "anyOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "answer": {"type": "string"},
+                                "correct": {"type": "boolean"},
+                                "match_case": {"type": "boolean"},
+                                "fuzzy_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+                                "feedback": {"type": "string"},
+                            },
+                            "required": ["answer", "correct"],
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string", "pattern": "default"},
+                                "feedback": {"type": "string"},
+                            },
+                            "required": ["type", "feedback"],
+                        },
+                    ],
+                },
+            },
+        },
+        "required": ["type", "question", "answers"],
+    }
 
 
 SCHEMATA = {
     "many_choice": "MC",
     "multiple_choice": "MC",
     "numeric": "NUM",
+    "string": "STR",
 }
 
 

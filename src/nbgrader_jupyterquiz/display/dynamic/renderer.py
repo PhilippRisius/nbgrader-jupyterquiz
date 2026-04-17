@@ -8,7 +8,7 @@ from string import Template
 _ASSETS_PACKAGE = "nbgrader_jupyterquiz.display"
 
 
-def render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, num, max_width, border_radius, question_alignment):
+def render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, num, max_width, border_radius, question_alignment, grade_id=None):
     """
     Build the HTML container div with data attributes and inline style.
 
@@ -30,6 +30,10 @@ def render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, n
         CSS border-radius in pixels.
     question_alignment : str
         CSS text-align value.
+    grade_id : str, optional
+        Nbgrader ``grade_id`` of the host task cell.  When provided,
+        emitted as ``data-grade-id`` so the JS recorder persists
+        responses to the sidecar file; omitted when ``None``.
 
     Returns
     -------
@@ -37,13 +41,15 @@ def render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, n
         Opening ``<div>`` tag with all required data attributes.
     """
     preserve_json = "true" if preserve_responses else "false"
+    grade_attr = f' data-grade-id="{grade_id}"' if grade_id else ""
     return (
         f'<div id="{div_id}" '
         f'data-shufflequestions="{shuffle_questions}" '
         f'data-shuffleanswers="{shuffle_answers}" '
         f'data-preserveresponses="{preserve_json}" '
         f'data-numquestions="{num}" '
-        f'data-maxwidth="{max_width}" '
+        f'data-maxwidth="{max_width}"'
+        f"{grade_attr} "
         f'style="border-radius: {border_radius}px; text-align: {question_alignment}">'
     )
 

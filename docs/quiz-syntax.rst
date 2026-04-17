@@ -3,7 +3,8 @@ Quiz Syntax
 ===========
 
 **nbgrader-jupyterquiz** uses a lightweight Markdown syntax to define quizzes
-inside notebook cells.  During ``nbgrader assign``, the :class:`~nbgrader_jupyterquiz.CreateQuiz`
+inside notebook cells.  During ``nbgrader generate_assignment``, the
+:class:`~nbgrader_jupyterquiz.CreateQuiz`
 preprocessor converts these regions into interactive quiz cells powered by the
 bundled jupyterquiz display layer.
 
@@ -108,6 +109,47 @@ line.
      - all
      - Number of columns for the answer layout.  Default: 2 (CSS default;
        reduced to 1 automatically on narrow screens).
+   * - ``{N}``
+     - all (graded quizzes)
+     - Points the question is worth.  ``N`` may be any positive number,
+       including fractions (``{0.5}``).  Default: 1.  Shown to the
+       student as a small badge next to the question text; when at least
+       one question in a quiz carries an explicit ``{N}`` marker, every
+       sibling gets a badge too (unweighted questions as ``1 pt``).  The
+       autograder awards ``N`` points on a correct answer and zero
+       otherwise; the cell's total max_score is the sum over its
+       questions.  See :doc:`graded-quizzes`.
+
+Quiz-level options
+~~~~~~~~~~~~~~~~~~
+
+Options appear on the ``#### Quiz`` opening line as space-separated
+``key=value`` pairs.  In addition to the display options (``encoded``,
+``inline``, ``hidden``, ``filename``) documented in the JupyterQuiz
+fork, nbgrader-jupyterquiz adds two options that control grading:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 20 55
+
+   * - Option
+     - Default
+     - Description
+   * - ``graded=true`` / ``graded=false``
+     - ``true``
+     - Opt this quiz out of auto-grading.  Default is ``true``: a quiz
+       inside a Manually Graded Task cell is auto-graded.  Use
+       ``graded=false`` to keep the quiz as a plain self-check
+       (correctness feedback visible, no points awarded by the quiz)
+       while the surrounding task is still manually graded via the
+       task cell's own ``points`` field.
+   * - ``hide_correctness=true`` / ``hide_correctness=false``
+     - matches ``graded``
+     - Whether to hide correctness feedback during answering.  Default
+       tracks ``graded``: hidden when graded, visible when not.
+       Override in either direction (e.g. ``graded=false
+       hide_correctness=true`` for a quiz that neither grades nor
+       reveals answers — useful for study mode).
 
 Answer lines
 ------------
