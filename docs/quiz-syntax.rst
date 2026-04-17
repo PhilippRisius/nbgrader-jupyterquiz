@@ -135,19 +135,20 @@ fork, nbgrader-jupyterquiz adds two options that control grading:
      - Default
      - Description
    * - ``graded=true`` / ``graded=false``
-     - inherit
-     - Opt this quiz in or out of auto-grading.  Default behavior is
-       "graded iff the host cell has an ``nbgrader.grade_id``".  Use
-       ``graded=false`` inside a Manually Graded Task cell to keep the
-       quiz as a plain self-check (correctness feedback visible, no
-       points awarded) while the surrounding task is still manually
-       graded via the task cell's ``points``.
+     - ``true``
+     - Opt this quiz out of auto-grading.  Default is ``true``: a quiz
+       inside a Manually Graded Task cell is auto-graded.  Use
+       ``graded=false`` to keep the quiz as a plain self-check
+       (correctness feedback visible, no points awarded by the quiz)
+       while the surrounding task is still manually graded via the
+       task cell's own ``points`` field.
    * - ``hide_correctness=true`` / ``hide_correctness=false``
-     - inherit
+     - matches ``graded``
      - Whether to hide correctness feedback during answering.  Default
-       behavior is "hidden iff graded".  Override in either direction
-       (e.g. ``graded=false hide_correctness=true`` for a quiz that
-       neither grades nor reveals answers — useful for study mode).
+       tracks ``graded``: hidden when graded, visible when not.
+       Override in either direction (e.g. ``graded=false
+       hide_correctness=true`` for a quiz that neither grades nor
+       reveals answers — useful for study mode).
 
 Answer lines
 ------------

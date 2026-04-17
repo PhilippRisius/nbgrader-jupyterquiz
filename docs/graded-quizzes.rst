@@ -13,18 +13,21 @@ partial-credit support.
 
 The instructor only needs to:
 
-1. Register :class:`~nbgrader_jupyterquiz.CreateQuiz` at the front of the
-   ``GenerateAssignment`` preprocessor list (see
+1. Register :class:`~nbgrader_jupyterquiz.CreateQuiz` at the front of
+   the ``GenerateAssignment`` preprocessor list (see
    :doc:`nbgrader-pipeline`).
-2. Write a quiz inside a Manually Graded Task cell with an
-   ``nbgrader.grade_id`` set — exactly the same authoring flow as the
-   self-checking quiz in :doc:`quiz-syntax`.
+2. Write the quiz inside a Manually Graded Task cell — exactly the
+   same authoring flow as the self-checking quiz in
+   :doc:`quiz-syntax`.
 
-The preprocessor detects the ``grade_id`` and promotes the quiz to
-graded mode: correctness feedback is hidden (so students can't guess
+Because nbgrader requires every Manually Graded Task cell to carry a
+``grade_id``, the preprocessor promotes the quiz to graded mode by
+default: correctness feedback is hidden (so students can't guess
 their way through), each answer click is persisted to the sidecar, and
 an autograder cell is auto-generated.  **No separate test cell needs
-to be written by hand.**
+to be written by hand.**  To opt a quiz out on a per-quiz basis, use
+``graded=false`` in the quiz header (see `Mixing graded and self-check
+quizzes`_ below).
 
 
 How it works
@@ -37,7 +40,10 @@ stripped from the release by nbgrader's ``ClearHiddenTests`` and
 restored at autograde time by ``OverwriteCells`` — embeds the answer
 key as a Python literal and invokes :func:`grade_quiz`.  A bare
 ``_result.score`` at the end of the cell feeds nbgrader's partial-credit
-machinery (``utils.determine_grade``):
+machinery (``utils.determine_grade``).  The task cell's own ``points``
+field is left untouched — it remains available for any manual grading
+of the surrounding task content (prose, code, essay) alongside the
+auto-graded quiz score.
 
 .. code-block:: python
 
@@ -103,16 +109,16 @@ interesting combinations:
    * - Configuration
      - Correctness feedback
      - Auto-graded
-   * - Task cell w/ ``grade_id`` (default)
+   * - Quiz header (defaults)
      - Hidden (Selected/Deselected)
      - Yes
-   * - Task cell w/ ``grade_id`` + ``hide_correctness=false``
+   * - ``#### Quiz hide_correctness=false``
      - Visible (green / red)
      - Yes (but leaky)
-   * - Task cell w/ ``grade_id`` + ``graded=false``
+   * - ``#### Quiz graded=false``
      - Visible (green / red)
      - No
-   * - Task cell w/ ``grade_id`` + ``graded=false hide_correctness=true``
+   * - ``#### Quiz graded=false hide_correctness=true``
      - Hidden (Selected/Deselected)
      - No (study mode)
 
