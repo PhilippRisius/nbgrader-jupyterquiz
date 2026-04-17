@@ -6,15 +6,61 @@ Changelog
     `Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
     ------------------------------------------------------------------------------
 
-    Contributors:
+    Contributors: Philipp Emmo Tobias Risius (:user:`PhilippRisius`)
+
+    Developed with assistance from Claude (Anthropic) — see commit trailers
+    for per-commit attribution.
 
     Changes
     ^^^^^^^
-    * No change.
+    * Added **graded-quiz mode**: quizzes inside nbgrader Manually Graded
+      Task cells are now auto-graded end-to-end.  Student responses are
+      persisted to a ``responses.json`` sidecar as they answer;
+      ``nbgrader autograde`` reads the sidecar and awards partial
+      credit.  Introduces :func:`~nbgrader_jupyterquiz.grade_quiz`, the
+      ``QuizResult`` / ``QuestionResult`` dataclasses, and a static HTML
+      review rendered into the autograded cell output (visible in
+      ``generate_feedback``).  Cross-frontend (JupyterLab 4, Notebook 7,
+      classic Notebook); VS Code's Jupyter extension is not supported.
+    * Added the ``{N}`` question-line marker for per-question points,
+      supporting fractional weights (e.g. ``{0.5}``).  Points render as a
+      badge next to each question; the badge-display rule is "show on
+      every question iff at least one question in the quiz carries an
+      explicit ``{N}``".
+    * Added quiz-level ``graded=false`` option to opt a single quiz out
+      of auto-grading inside a task cell (self-check mode) while leaving
+      the task cell's own ``points`` intact for any manual grading of
+      surrounding content.  Added quiz-level ``hide_correctness``
+      override, independently toggleable from ``graded``.
+    * Added hide-correctness feedback mode (auto-enabled for graded
+      quizzes) — MC/many-choice/numeric questions show a neutral
+      "Selected: … / Deselected: …" state instead of green/red so
+      students can't guess their way to the right answer.
+    * Replaced ``<label>``+hidden ``<input type=radio>`` with a plain
+      ``<button type=button>`` for MC answers.  Eliminates the
+      label→radio click synthesis that otherwise double-fired the click
+      handler in hide-mode toggles.
+    * Added a dedicated :doc:`graded-quizzes <graded-quizzes>`
+      documentation page covering the workflow end-to-end.
+    * Instructor config changed: register ``CreateQuiz`` with
+      ``c.GenerateAssignment.preprocessors.insert(0, ...)`` (not
+      ``.append(...)``).  The new auto-generated autograder cells must
+      run before nbgrader's ``SaveCells`` and ``ClearHiddenTests``.
+    * Added string question schema (``validate.Schema.STR``).  The
+      previous ``SCHEMATA`` dispatch was missing the string type —
+      constructing a string-type question dict raised ``KeyError``
+      before schema validation.
 
     Fixes
     ^^^^^
-    * No change.
+    * ``nbgrader-pipeline.rst`` no longer refers to the deprecated
+      ``nbgrader assign`` command — it's ``generate_assignment`` in
+      nbgrader ≥ 0.9.
+    * Numeric range display bug: ``+ [0, 10]`` now includes the upper
+      bound (``10`` was previously rejected due to a strict ``<``
+      comparison) and the match is no longer gated on
+      ``answer.feedback`` being set.  Reported during v0.3.0
+      end-to-end validation.
 
 .. _changes_0.3.0:
 
