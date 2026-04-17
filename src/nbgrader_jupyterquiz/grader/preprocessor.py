@@ -57,13 +57,25 @@ class CreateQuiz(NbGraderPreprocessor):
         True,
         help=dedent(
             """
-            Whether to auto-generate an autograded test cell after each quiz
-            task cell.  When ``True`` (the default) and the host task cell has
-            an nbgrader ``grade_id``, the preprocessor emits a test cell that
-            calls ``grade_quiz(grade_id)`` and asserts a pass, and forces the
-            task cell's ``points`` to 0 to avoid double-counting with the
-            auto-grade score.  Disable if you prefer to author test cells
-            manually.
+            Whether to auto-generate autograder-cell content when the host
+            task cell carries an nbgrader ``grade_id``.
+
+            When ``True`` (the default), each generated ``display_quiz``
+            code cell also becomes the nbgrader-tracked graded cell: its
+            source carries a ``### BEGIN HIDDEN TESTS`` block that embeds
+            the answer key and calls
+            :func:`~nbgrader_jupyterquiz.grade_quiz` — the block is
+            stripped from the release by ``ClearHiddenTests`` and restored
+            at autograde time by ``OverwriteCells``.  A bare
+            ``_result.score`` expression at the end of the cell feeds
+            nbgrader's partial-credit scoring
+            (``utils.determine_grade``).  The task cell's ``points`` field
+            is forced to 0 so the manually-graded channel does not
+            double-count against the autograded score.
+
+            Disable to opt out of auto-grading and keep ``display_quiz``
+            as a plain (non-graded) code cell; in that mode instructors
+            author their own autograded test cells.
             """
         ),
     ).tag(config=True)

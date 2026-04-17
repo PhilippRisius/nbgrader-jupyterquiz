@@ -152,10 +152,14 @@ class QuizResult:
         str
             Human-readable breakdown of per-question outcomes.
         """
-        lines = [f"Quiz {self.grade_id!r}: {self.score}/{self.max_score}"]
+        lines = [f"Quiz {self.grade_id!r}: {_fmt_pts(self.score)}/{_fmt_pts(self.max_score)}"]
         for d in self.details:
             marker = "PASS" if d.correct else "FAIL"
-            lines.append(f"  [{marker}] Q{d.qnum} ({d.question_type}): recorded={d.recorded!r}, expected={d.expected!r}")
+            lines.append(
+                f"  [{marker}] Q{d.qnum} ({d.question_type}, "
+                f"{_fmt_pts(d.earned)}/{_fmt_pts(d.points)} pts): "
+                f"recorded={d.recorded!r}, expected={d.expected!r}"
+            )
         return "\n".join(lines)
 
     def display_review(self) -> None:
