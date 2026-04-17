@@ -10,6 +10,7 @@ Welcome to nbgrader-jupyterquiz's documentation!
    usage
    quiz-syntax
    nbgrader-pipeline
+   graded-quizzes
    display-options
    contributing
    releasing

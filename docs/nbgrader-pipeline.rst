@@ -90,6 +90,12 @@ grading body is properly stripped from the release.  Appending to the end
 of the list (``.append(...)``) causes autograde to fail with checksum and
 grade_id validation errors.
 
+When the host Manually Graded Task cell has an nbgrader ``grade_id``,
+``CreateQuiz`` promotes the quiz to graded mode: correctness feedback
+is hidden, responses are persisted to a sidecar file, and the cell is
+autograded at submission time.  See :doc:`graded-quizzes` for the full
+workflow.
+
 The preprocessor exposes three configurable traitlets:
 
 .. list-table::

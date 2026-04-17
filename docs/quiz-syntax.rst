@@ -117,7 +117,7 @@ line.
        sibling gets a badge too (unweighted questions as ``1 pt``).  The
        autograder awards ``N`` points on a correct answer and zero
        otherwise; the cell's total max_score is the sum over its
-       questions.
+       questions.  See :doc:`graded-quizzes`.
 
 Answer lines
 ------------
