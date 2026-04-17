@@ -45,8 +45,20 @@ function check_numeric(ths, event) {
                     done = true;
                 }
             } else if ('range' in answer) {
-                if ((submission >= answer.range[0]) && (submission < answer.range[1])) {
-                    fb.innerHTML = jaxify(answer.feedback);
+                // Inclusive on both ends — matches the quiz-syntax semantics
+                // documented for ``+ [min, max]`` and the Python autograder's
+                // grade_numeric().  Previously used a strict `<` on the upper
+                // bound, which rejected ``max`` as incorrect.  Force a
+                // numeric coercion of the submission because earlier branches
+                // (fraction / precision) already normalise to a Number, but
+                // the plain-input path leaves it as a string.
+                var numSub = Number(submission);
+                if (Number.isFinite(numSub) && numSub >= answer.range[0] && numSub <= answer.range[1]) {
+                    if ("feedback" in answer) {
+                        fb.innerHTML = jaxify(answer.feedback);
+                    } else {
+                        fb.innerHTML = jaxify("Correct");
+                    }
                     correct = answer.correct;
                     done = true;
                 }

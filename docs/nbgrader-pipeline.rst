@@ -37,14 +37,14 @@ the full authoring syntax.
       - "Lists are unordered and mutable."
     #### End Quiz
 
-Running ``nbgrader assign``
----------------------------
+Running ``nbgrader generate_assignment``
+----------------------------------------
 
 Run the standard nbgrader assignment generation command:
 
 .. code-block:: console
 
-    nbgrader assign <assignment-name>
+    nbgrader generate_assignment <assignment-name>
 
 ``CreateQuiz`` runs as part of the ``GenerateAssignment`` preprocessor pipeline.
 For each quiz region it:
@@ -114,8 +114,8 @@ The preprocessor exposes three configurable traitlets:
    * - ``enforce_metadata``
      - ``True``
      - Raise an error if a quiz region is found outside a *Manually Graded Task*
-       cell.  Disable only if you are using ``nbgrader assign`` without the full
-       grading pipeline.
+       cell.  Disable only if you are using ``nbgrader generate_assignment``
+       without the full grading pipeline.
 
 To override a traitlet, add it to ``nbgrader_config.py``:
 
