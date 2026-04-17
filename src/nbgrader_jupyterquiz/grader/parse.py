@@ -197,13 +197,22 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
     -------
     dict
         Quiz options dict with keys ``encoded``, ``inline``, ``hidden``,
-        ``filename``, ``hide_correctness``.  Omitted keys retain their
-        defaults.  ``hide_correctness=true`` propagates ``hide: true`` to
-        every MC / many-choice answer so the display hides correctness
-        feedback and shows a neutral Selected / Deselected state instead.
-        The default for ``hide_correctness`` is ``None`` (unspecified);
-        the preprocessor treats ``None`` as "off unless the host cell is
-        graded" and ``True``/``False`` as explicit opt-in/opt-out.
+        ``filename``, ``hide_correctness``, ``graded``.  Omitted keys
+        retain their defaults.
+
+        - ``hide_correctness=true`` propagates ``hide: true`` to every
+          MC / many-choice answer so the display hides correctness
+          feedback and shows a neutral Selected / Deselected state
+          instead.  Default ``None`` — the preprocessor treats ``None``
+          as "off unless the host cell is graded" and ``True``/``False``
+          as explicit opt-in/opt-out.
+        - ``graded=false`` opts a single quiz out of auto-grading
+          inside a task cell — the generated cell is a plain
+          ``display_quiz(...)`` code cell with no nbgrader metadata,
+          no hidden tests, and correctness feedback visible.  Default
+          ``None`` — the preprocessor treats ``None`` as "graded iff
+          the host task cell has a ``grade_id`` and
+          ``auto_generate_tests`` is on".
     """
     result: dict[str, Any] = {
         "encoded": True,
@@ -211,6 +220,7 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
         "hidden": True,
         "filename": None,
         "hide_correctness": None,
+        "graded": None,
     }
     for token in header.split():
         if "=" not in token:

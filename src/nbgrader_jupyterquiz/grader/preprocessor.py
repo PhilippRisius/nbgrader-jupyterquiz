@@ -185,14 +185,16 @@ class CreateQuiz(NbGraderPreprocessor):
             raise RuntimeError("Quiz detected in a non-task cell; please mark all quiz cells as 'Manually Graded Task'.")
         quiz_cell_idx = next(self.quiz_cell_counter)
         grade_id = cell.metadata.get("nbgrader", {}).get("grade_id")
-        graded_mode = bool(grade_id and self.auto_generate_tests)
+        # Host-cell graded toggle: the per-quiz ``graded`` option can
+        # further opt individual quizzes out.  Task-cell ``points`` are
+        # left untouched — they remain for manual grading of whatever
+        # isn't the auto-graded quiz (prose, code, etc.).  The generated
+        # auto-graded cell carries its own ``points`` (sum of
+        # per-question weights).
+        host_graded = bool(grade_id and self.auto_generate_tests)
 
         if grade_id:
             self._propagate_hide_correctness(quizzes)
-        if graded_mode:
-            # Task-cell points are zeroed so the manually-graded channel
-            # doesn't double-count against the autograded score.
-            cell.metadata.setdefault("nbgrader", {})["points"] = 0
 
         quiz_cells: list[NotebookNode] = []
         for quiz_idx, quiz in enumerate(quizzes):
@@ -200,6 +202,7 @@ class CreateQuiz(NbGraderPreprocessor):
             source_ref = self._inject_quiz_content(quiz, tag, cell_contents)
             imp = "" if imported else "from nbgrader_jupyterquiz.display import display_quiz\n"
             imported = True
+            quiz_graded = host_graded and quiz.options.get("graded") is not False
             quiz_cells.append(
                 self._build_quiz_code_cell(
                     quiz,
@@ -208,7 +211,7 @@ class CreateQuiz(NbGraderPreprocessor):
                     source_ref,
                     imp,
                     grade_id,
-                    graded_mode,
+                    quiz_graded,
                     len(quizzes),
                 )
             )
@@ -222,7 +225,11 @@ class CreateQuiz(NbGraderPreprocessor):
         Mutates each quiz's options and answer/question dicts in place:
         sets ``hide_correctness=True`` and stamps ``hide: true`` onto
         every MC/many-choice answer and numeric question.  Skips quizzes
-        where the instructor explicitly wrote ``hide_correctness=false``.
+        where the instructor explicitly wrote ``hide_correctness=false``
+        or ``graded=false`` (an ungraded quiz reveals correctness like
+        any self-checking quiz).  Instructors can still force
+        hide-correctness on an ungraded quiz by writing
+        ``hide_correctness=true`` explicitly.
 
         Parameters
         ----------
@@ -232,6 +239,8 @@ class CreateQuiz(NbGraderPreprocessor):
         for quiz in quizzes:
             if quiz.options.get("hide_correctness") is False:
                 continue  # instructor opted out
+            if quiz.options.get("graded") is False and quiz.options.get("hide_correctness") is not True:
+                continue  # ungraded: default to visible correctness
             quiz.options["hide_correctness"] = True
             for question in quiz.questions:
                 if question["type"] in ("multiple_choice", "many_choice"):

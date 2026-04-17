@@ -300,7 +300,20 @@ def test_parse_quiz_options_empty_returns_defaults():
         "hidden": True,
         "filename": None,
         "hide_correctness": None,
+        "graded": None,
     }
+
+
+def test_parse_quiz_options_graded_false():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    assert parse_quiz_options("graded=false")["graded"] is False
+
+
+def test_parse_quiz_options_graded_true():
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    assert parse_quiz_options("graded=true")["graded"] is True
 
 
 def test_hide_correctness_propagates_to_mc_answers():

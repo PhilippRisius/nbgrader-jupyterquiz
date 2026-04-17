@@ -65,6 +65,58 @@ returns a ``QuizResult`` whose ``.score`` — the final bare expression
 — becomes the cell's partial-credit grade.
 
 
+Mixing graded and self-check quizzes
+====================================
+
+Sometimes a Manually Graded Task cell contains both work that is
+graded by hand (prose, code) and a self-check quiz that shouldn't
+contribute to the score.  Mark the quiz with ``graded=false``:
+
+.. code-block:: markdown
+
+    #### Quiz graded=false
+    * (SC) "Self-check — not graded"
+      + "A"
+      - "B"
+    #### End Quiz
+
+An ungraded quiz:
+
+* emits a plain ``display_quiz(...)`` cell — no nbgrader metadata on
+  the generated cell, no hidden-tests block, no gradebook entry;
+* shows correctness feedback (green / red), as in v0.3.x
+  self-checking mode;
+* does **not** render points badges unless a question carries an
+  explicit ``{N}`` marker (in which case the badge is shown
+  per the usual rule);
+* leaves the task cell's own ``points`` untouched — those remain
+  available for manual grading of whatever the task cell actually
+  grades.
+
+``graded=false`` and ``hide_correctness`` are independent.  The
+interesting combinations:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Configuration
+     - Correctness feedback
+     - Auto-graded
+   * - Task cell w/ ``grade_id`` (default)
+     - Hidden (Selected/Deselected)
+     - Yes
+   * - Task cell w/ ``grade_id`` + ``hide_correctness=false``
+     - Visible (green / red)
+     - Yes (but leaky)
+   * - Task cell w/ ``grade_id`` + ``graded=false``
+     - Visible (green / red)
+     - No
+   * - Task cell w/ ``grade_id`` + ``graded=false hide_correctness=true``
+     - Hidden (Selected/Deselected)
+     - No (study mode)
+
+
 Per-question points
 ===================
 

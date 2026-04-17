@@ -119,6 +119,36 @@ line.
        otherwise; the cell's total max_score is the sum over its
        questions.  See :doc:`graded-quizzes`.
 
+Quiz-level options
+~~~~~~~~~~~~~~~~~~
+
+Options appear on the ``#### Quiz`` opening line as space-separated
+``key=value`` pairs.  In addition to the display options (``encoded``,
+``inline``, ``hidden``, ``filename``) documented in the JupyterQuiz
+fork, nbgrader-jupyterquiz adds two options that control grading:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 20 55
+
+   * - Option
+     - Default
+     - Description
+   * - ``graded=true`` / ``graded=false``
+     - inherit
+     - Opt this quiz in or out of auto-grading.  Default behavior is
+       "graded iff the host cell has an ``nbgrader.grade_id``".  Use
+       ``graded=false`` inside a Manually Graded Task cell to keep the
+       quiz as a plain self-check (correctness feedback visible, no
+       points awarded) while the surrounding task is still manually
+       graded via the task cell's ``points``.
+   * - ``hide_correctness=true`` / ``hide_correctness=false``
+     - inherit
+     - Whether to hide correctness feedback during answering.  Default
+       behavior is "hidden iff graded".  Override in either direction
+       (e.g. ``graded=false hide_correctness=true`` for a quiz that
+       neither grades nor reveals answers — useful for study mode).
+
 Answer lines
 ------------
 
