@@ -21,6 +21,7 @@ _DEFAULT_COLORS = {
     "--jq-numeric-input-shadow": "#999999",
     "--jq-string-bg": "#4c1a57",
     "--jq-incorrect-color": "#c80202",
+    "--jq-select-color": "#6f78ff",
     "--jq-correct-color": "#009113",
     "--jq-text-color": "#fafafa",
     "--jq-link-color": "#9abafa",
@@ -38,6 +39,7 @@ _FDSP_COLORS = {
     "--jq-numeric-input-shadow": "#999999",
     "--jq-string-bg": "#861657",
     "--jq-incorrect-color": "#666666",
+    "--jq-select-color": "#6f78ff",
     "--jq-correct-color": "#87a878",
     "--jq-text-color": "#fafafa",
     "--jq-link-color": "#9abafa",
@@ -55,6 +57,7 @@ def display_quiz(
     max_width=600,
     colors=None,
     load_js=True,
+    grade_id=None,
 ):
     """
     Display an interactive quiz in a Jupyter notebook.
@@ -81,6 +84,13 @@ def display_quiz(
         CSS variable overrides, or ``'fdsp'`` for the alternate palette.
     load_js : bool, optional
         Whether to inline the JavaScript source.
+    grade_id : str, optional
+        Nbgrader ``grade_id`` of the host task cell.  When set, the JS
+        recorder persists student responses to a ``responses.json``
+        sidecar file so an autograded test cell can read them via
+        :func:`nbgrader_jupyterquiz.autograde.grade_quiz`.  When
+        ``None`` (the default for non-nbgrader callers), the recorder
+        is a no-op.
     """
     assert not (shuffle_questions and preserve_responses), "Preserving responses not supported when shuffling questions."
     assert num == 1_000_000 or (not preserve_responses), "Preserving responses not supported when num is set."
@@ -96,7 +106,7 @@ def display_quiz(
 
     prefix_script, static, url = load_questions_script(ref, div_id)
 
-    mydiv = render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, num, max_width, border_radius, question_alignment)
+    mydiv = render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, num, max_width, border_radius, question_alignment, grade_id)
     styles = build_styles(div_id, color_dict)
     javascript = build_script(prefix_script, static, url, div_id, load_js)
 

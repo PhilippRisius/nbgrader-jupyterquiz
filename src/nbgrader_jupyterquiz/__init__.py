@@ -36,6 +36,7 @@ __version__ = "0.3.0"
 
 from nbgrader_jupyterquiz.display import capture_responses, display_quiz
 from nbgrader_jupyterquiz.grader import CreateQuiz
+from nbgrader_jupyterquiz.grader.autograde import grade_quiz
 
 
-__all__ = ["CreateQuiz", "capture_responses", "display_quiz"]
+__all__ = ["CreateQuiz", "capture_responses", "display_quiz", "grade_quiz"]

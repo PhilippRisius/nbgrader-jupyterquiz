@@ -4,40 +4,30 @@ function check_numeric(ths, event) {
         ths.blur();
 
         var id = ths.id.split('-')[0];
+        var hideMode = (ths.dataset.hide == "true");
 
         var submission = ths.value;
         if (submission.indexOf('/') != -1) {
             var sub_parts = submission.split('/');
-            //console.log(sub_parts);
             submission = sub_parts[0] / sub_parts[1];
         }
-        //console.log("Reader entered", submission);
 
         if (("precision" in ths.dataset) && (ths.dataset.precision > 0)) {
             var precision = ths.dataset.precision;
             submission = Number(Number(submission).toPrecision(precision));
         }
 
-
-        //console.log("In check_numeric(), id="+id);
-        //console.log(event.srcElement.id)
-        //console.log(event.srcElement.dataset.feedback)
-
         var fb = document.getElementById("fb" + id);
         fb.style.display = "none";
         fb.innerHTML = "Incorrect -- try again.";
 
         var answers = JSON.parse(ths.dataset.answers);
-        //console.log(answers);
 
         var defaultFB = "Incorrect. Try again.";
         var correct;
         var done = false;
         answers.every(answer => {
-            //console.log(answer.type);
-
             correct = false;
-            // if (answer.type=="value"){
             if ('value' in answer) {
                 var value;
                 if ("precision" in ths.dataset) {
@@ -52,18 +42,12 @@ function check_numeric(ths, event) {
                         fb.innerHTML = jaxify("Correct");
                     }
                     correct = answer.correct;
-                    //console.log(answer.correct);
                     done = true;
                 }
-
-                // } else if (answer.type=="range") {
             } else if ('range' in answer) {
-                console.log(answer.range);
-                console.log(submission, submission >=answer.range[0], submission < answer.range[1])
                 if ((submission >= answer.range[0]) && (submission < answer.range[1])) {
                     fb.innerHTML = jaxify(answer.feedback);
                     correct = answer.correct;
-                    console.log(answer.correct);
                     done = true;
                 }
             } else if (answer.type == "default") {
@@ -72,20 +56,30 @@ function check_numeric(ths, event) {
                 }
             }
             if (done) {
-                return false; // Break out of loop if this has been marked correct
+                return false;
             } else {
-                return true; // Keep looking for case that includes this as a correct answer
+                return true;
             }
         });
-        console.log("done:", done);
 
         if ((!done) && (defaultFB != "")) {
             fb.innerHTML = jaxify(defaultFB);
-            //console.log("Default feedback", defaultFB);
         }
 
         fb.style.display = "block";
-        if (correct) {
+
+        // Feedback styling: hide mode shows a neutral "Recorded." state;
+        // legacy mode reveals correctness via correct/incorrect colouring.
+        if (hideMode) {
+            ths.className = "Input-text";
+            ths.classList.add("selectedButton");
+            fb.className = "Feedback";
+            fb.classList.remove("deselected");
+            fb.classList.add("selected");
+            fb.innerHTML = (submission === "" || submission === null || Number.isNaN(Number(submission)))
+                ? "Cleared."
+                : "Answer recorded: " + submission + ".";
+        } else if (correct) {
             ths.className = "Input-text";
             ths.classList.add("correctButton");
             fb.className = "Feedback";
@@ -117,6 +111,18 @@ function check_numeric(ths, event) {
         }
         // End code to preserve responses
 
+        // Sidecar recorder (no-op without data-grade-id)
+        var __gradeId = outerContainer.dataset.gradeId;
+        if (__gradeId) {
+            var __qnum = document.getElementById("quizWrap"+id).dataset.qnum;
+            var __parsed = Number.isFinite(Number(submission)) ? Number(submission) : submission;
+            recordResponse(__gradeId, __qnum, {
+                type: "numeric",
+                raw: ths.value,
+                parsed: __parsed,
+            });
+        }
+
         if (typeof MathJax != 'undefined') {
             var version = MathJax.version;
             console.log('MathJax version', version);
@@ -128,17 +134,16 @@ function check_numeric(ths, event) {
         } else {
             console.log('MathJax not detected');
         }
-        // After correct answer, if next JupyterQuiz question exists and has a text input, scroll by current question height
-        if (correct) {
-            // find the current question wrapper
+        // Auto-advance focus to the next text-input quiz item.  In legacy
+        // mode we only advance on correct; in hide mode we advance on any
+        // submission since correctness isn't revealed.
+        if (correct || hideMode) {
             var wrapper = ths.closest('.Quiz');
             if (wrapper) {
                 var nextWrapper = wrapper.nextElementSibling;
                 if (nextWrapper && nextWrapper.classList.contains('Quiz')) {
                     var nextInput = nextWrapper.querySelector('input.Input-text');
                     if (nextInput) {
-                        var height = wrapper.getBoundingClientRect().height;
-                        console.log(height);
                         nextInput.focus();
                     }
                 }
@@ -248,12 +253,14 @@ function make_numeric(qa, outerqDiv, qDiv, aDiv, id) {
 
     var inp = document.createElement("input");
     inp.type = "text";
-    //inp.id="input-"+id;
     inp.id = id + "-0";
     inp.className = "Input-text";
     inp.setAttribute('data-answers', JSON.stringify(qa.answers));
     if ("precision" in qa) {
         inp.setAttribute('data-precision', qa.precision);
+    }
+    if (qa.hide) {
+        inp.setAttribute('data-hide', "true");
     }
     aDiv.append(inp);
     //console.log(inp);

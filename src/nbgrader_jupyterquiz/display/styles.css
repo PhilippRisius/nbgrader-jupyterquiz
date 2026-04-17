@@ -110,6 +110,8 @@
     color: #333333;
     padding: 10px;
     font-size: 16px;
+    font-family: inherit;
+    line-height: inherit;
     cursor: pointer;
     text-align: center;
     display: flex;
@@ -174,6 +176,33 @@
     color: var(--jq-correct-color);
 }
 
+.select {
+    color: var(--jq-select-color);
+}
+
+.jq-question-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.jq-question-row .jq-question-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jq-points-badge {
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    font-size: 0.8em;
+    font-weight: 600;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
 .correctButton {
     /*
     background: var(--jq-correct-color);
@@ -182,6 +211,21 @@
     animation-fill-mode: forwards;
     box-shadow: inset 0 0 5px var(--jq-mc-button-inset-shadow);
     color: var(--jq-text-color);
+    /*outline: none;*/
+}
+
+.selectedButton {
+    animation: select-anim 0.8s ease;
+    animation-fill-mode: forwards;
+    box-shadow: inset 0 0 5px var(--jq-mc-button-inset-shadow);
+    color: var(--jq-text-color);
+    /*outline: none;*/
+}
+
+.deselectedButton {
+    animation: select-anim 0.4s ease;
+    animation-direction: reverse;
+    color: inherit;
     /*outline: none;*/
 }
 
@@ -196,6 +240,12 @@
 @keyframes incorrect-anim {
     100% {
         background-color: var(--jq-incorrect-color);
+    }
+}
+
+@keyframes select-anim {
+    100% {
+        background-color: var(--jq-select-color);
     }
 }
 

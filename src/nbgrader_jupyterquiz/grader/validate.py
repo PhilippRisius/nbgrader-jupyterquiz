@@ -17,6 +17,7 @@ class Schema(Enum):
         "type": "object",
         "properties": {
             "question": {"type": "string"},
+            "points": {"type": "integer", "minimum": 1},
             "type": {
                 "type": "string",
                 "pattern": "multiple_choice|many_choice",
@@ -30,6 +31,7 @@ class Schema(Enum):
                         "correct": {"type": "boolean"},
                         "feedback": {"type": "string"},
                         "answer_cols": {"type": "number"},
+                        "hide": {"type": "boolean"},
                     },
                     "required": ["answer", "correct"],
                 },
@@ -48,6 +50,8 @@ class Schema(Enum):
             "question": {"type": "string"},
             "type": {"type": "string", "pattern": "numeric"},
             "precision": {"type": "integer"},
+            "points": {"type": "integer", "minimum": 1},
+            "hide": {"type": "boolean"},
             "answers": {
                 "type": "array",
                 "items": {

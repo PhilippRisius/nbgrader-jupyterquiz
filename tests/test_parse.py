@@ -294,7 +294,110 @@ def test_parse_quiz_options_empty_returns_defaults():
     from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
 
     result = parse_quiz_options("")
-    assert result == {"encoded": True, "inline": True, "hidden": True, "filename": None}
+    assert result == {
+        "encoded": True,
+        "inline": True,
+        "hidden": True,
+        "filename": None,
+        "hide_correctness": None,
+    }
+
+
+def test_hide_correctness_propagates_to_mc_answers():
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz hide_correctness=true\n* (SC) "What is 2+2?"\n  + "4"\n  - "5"\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    assert quizzes[0].options["hide_correctness"] is True
+    for answer in quizzes[0].questions[0]["answers"]:
+        assert answer.get("hide") is True
+
+
+def test_hide_correctness_default_does_not_touch_answers():
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz\n* (SC) "What is 2+2?"\n  + "4"\n  - "5"\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    assert quizzes[0].options["hide_correctness"] is None
+    for answer in quizzes[0].questions[0]["answers"]:
+        assert "hide" not in answer
+
+
+def test_hide_correctness_skips_numeric_answers():
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz hide_correctness=true\n* (NM) "What is 2+2?"\n  + <4>\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    # Numeric answers don't have hide semantics; the field should not be set.
+    for answer in quizzes[0].questions[0]["answers"]:
+        assert "hide" not in answer
+
+
+def test_question_points_parsed_from_braces():
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz\n* (SC) {3} "Capital of France?"\n  + "Paris"\n  - "Berlin"\n* (NM) {5} "Pi to 2 decimals?"\n  + <3.14>\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    assert quizzes[0].questions[0]["points"] == 3
+    assert quizzes[0].questions[1]["points"] == 5
+
+
+def test_question_points_unweighted_quiz_has_no_points_field():
+    """
+    When no question in a quiz carries a ``{N}`` marker, no ``points``
+    field is set on any question (the quiz is unweighted and the display
+    should render no badges).
+    """
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz\n* (SC) "No points marker here"\n  + "Yes"\n  - "No"\n* (SC) "And none here"\n  + "Yes"\n  - "No"\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    for q in quizzes[0].questions:
+        assert "points" not in q
+
+
+def test_question_points_propagate_default_to_siblings():
+    """
+    When any question in a quiz has an explicit ``{N}`` marker, every
+    other question in the same quiz gets ``points: 1`` so the UI renders
+    badges consistently on every question in the quiz.
+    """
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz\n* (SC) {3} "Worth three"\n  + "A"\n  - "B"\n* (SC) "Default weight"\n  + "A"\n  - "B"\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    assert quizzes[0].questions[0]["points"] == 3
+    assert quizzes[0].questions[1]["points"] == 1
+
+
+def test_question_points_propagation_is_per_quiz_not_per_notebook():
+    """
+    Two quiz regions in one cell — propagation only affects the quiz
+    that has an explicit marker; the unweighted quiz keeps no points.
+    """
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = (
+        "#### Quiz\n"
+        '* (SC) {5} "Region 0 — weighted"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        '* (SC) "Region 0 — default 1"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        "#### End Quiz\n"
+        "#### Quiz\n"
+        '* (SC) "Region 1 — unweighted"\n'
+        '  + "A"\n'
+        '  - "B"\n'
+        "#### End Quiz"
+    )
+    quizzes, _ = parse_cell(source)
+    # Region 0: weighted (propagation applies)
+    assert quizzes[0].questions[0]["points"] == 5
+    assert quizzes[0].questions[1]["points"] == 1
+    # Region 1: unweighted (no propagation)
+    assert "points" not in quizzes[1].questions[0]
 
 
 def test_parse_quiz_options_key_value_pairs():

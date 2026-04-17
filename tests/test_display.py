@@ -21,6 +21,7 @@ _DOCUMENTED_CSS_VARS = {
     "--jq-string-bg",
     "--jq-correct-color",
     "--jq-incorrect-color",
+    "--jq-select-color",
     "--jq-text-color",
     "--jq-link-color",
 }

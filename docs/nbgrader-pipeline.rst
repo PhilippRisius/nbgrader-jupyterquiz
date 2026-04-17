@@ -77,11 +77,18 @@ answers through nbgrader.  Grading support is planned for a future release.
 Configuration
 -------------
 
-Register ``CreateQuiz`` in your ``nbgrader_config.py``:
+Register ``CreateQuiz`` at the **front** of your ``GenerateAssignment``
+preprocessor list in ``nbgrader_config.py``:
 
 .. code-block:: python
 
-    c.GenerateAssignment.preprocessors.append("nbgrader_jupyterquiz.CreateQuiz")
+    c.GenerateAssignment.preprocessors.insert(0, "nbgrader_jupyterquiz.CreateQuiz")
+
+It must run before ``SaveCells`` so the auto-generated autograder cells
+are registered in the gradebook, and before ``ClearHiddenTests`` so the
+grading body is properly stripped from the release.  Appending to the end
+of the list (``.append(...)``) causes autograde to fail with checksum and
+grade_id validation errors.
 
 The preprocessor exposes three configurable traitlets:
 

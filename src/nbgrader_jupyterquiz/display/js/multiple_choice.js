@@ -1,246 +1,332 @@
 /* Callback function to determine whether a selected multiple-choice
    button corresponded to a correct answer and to provide feedback
-   based on the answer */
+   based on the answer.
+
+   Supports two modes per answer (via item.hide in the quiz JSON):
+   - hide=false (default): click reveals correct/incorrect (legacy).
+   - hide=true: click toggles a neutral Selected / Deselected state;
+     no correctness feedback is shown.  Intended for graded quizzes
+     where immediate feedback would allow the student to guess until
+     right.
+   Propagated at the quiz level via the "hide_correctness=true" quiz
+   option in #### Quiz headers (see parse.parse_cell). */
 function check_mc() {
-    var id = this.id.split('-')[0];
-    //var response = this.id.split('-')[1];
-    //console.log(response);
-    //console.log("In check_mc(), id="+id);
-    //console.log(event.srcElement.id)
-    //console.log(event.srcElement.dataset.correct)
-    //console.log(event.srcElement.dataset.feedback)
-
-    var label = event.srcElement;
-    //console.log(label, label.nodeName);
-    var depth = 0;
-    while ((label.nodeName != "LABEL") && (depth < 20)) {
-        label = label.parentElement;
-        console.log(depth, label);
-        depth++;
-    }
-
-
-
+    // `this` is the clicked button element (each answer is a <button>
+    // registered with btn.onclick = check_mc in make_mc).  Using a
+    // <button> instead of the old <label>+hidden-<input> avoids the
+    // browser's label→radio click synthesis that double-fired this
+    // handler and broke the hide-mode toggle.
+    var label = this;
+    var id = label.id.split('-')[0];
     var answers = label.parentElement.children;
-    //console.log(answers);
-
-    // Split behavior based on multiple choice vs many choice:
     var fb = document.getElementById("fb" + id);
+    var hideMode = (label.dataset.hide == "true");
 
-
-
-    /* Multiple choice (1 answer). Allow for 0 correct
-       answers as an edge case */
     if (fb.dataset.numcorrect <= 1) {
-        // What follows is for the saved responses stuff
+        /* ----- Single-choice path ----- */
         var outerContainer = fb.parentElement.parentElement;
+        var response = (label.innerText || label.textContent || "").trim();
+        var qnum = document.getElementById("quizWrap"+id).dataset.qnum;
+
+        // Existing DOM data-responses update (only when preserve_responses=true).
         var responsesContainer = document.getElementById("responses" + outerContainer.id);
         if (responsesContainer) {
-            //console.log(responsesContainer);
-            var response = label.firstChild.innerText;
-            if (label.querySelector(".QuizCode")){
-                response+= label.querySelector(".QuizCode").firstChild.innerText;
+            var responses = JSON.parse(responsesContainer.dataset.responses);
+            if (hideMode && label.dataset.selected == "true") {
+                // Clicking an already-selected SC answer in hide mode deselects it.
+                responses[qnum] = null;
+            } else {
+                responses[qnum] = response;
             }
-            console.log(response);
-            //console.log(document.getElementById("quizWrap"+id));
-            var qnum = document.getElementById("quizWrap"+id).dataset.qnum;
-            console.log("Question " + qnum);
-            //console.log(id, ", got numcorrect=",fb.dataset.numcorrect);
-            var responses=JSON.parse(responsesContainer.dataset.responses);
-            console.log(responses);
-            responses[qnum]= response;
             responsesContainer.setAttribute('data-responses', JSON.stringify(responses));
             printResponses(responsesContainer);
         }
-        // End code to preserve responses
 
+        // Visual reset of siblings (radio-like behaviour).
         for (var i = 0; i < answers.length; i++) {
             var child = answers[i];
-            //console.log(child);
-            child.className = "MCButton";
+            if (child.id != label.id) {
+                if (child.classList.contains("selectedButton")) {
+                    child.setAttribute('data-selected', "false");
+                    child.classList.remove("selectedButton");
+                    void child.offsetWidth;
+                    child.classList.add("deselectedButton");
+                }
+                if (child.classList.contains("correctButton")) child.classList.remove("correctButton");
+                if (child.classList.contains("incorrectButton")) child.classList.remove("incorrectButton");
+            }
         }
 
-
-
-        if (label.dataset.correct == "true") {
-            // console.log("Correct action");
-            if ("feedback" in label.dataset) {
-                fb.innerHTML = jaxify(label.dataset.feedback);
+        if (hideMode) {
+            // Toggle select / deselect on the clicked label — no correctness hint.
+            if (label.dataset.selected == "true") {
+                label.setAttribute('data-selected', "false");
+                label.classList.remove("selectedButton");
+                void label.offsetWidth;
+                label.classList.add("deselectedButton");
+                fb.innerHTML = 'Deselected: "' + response + '".';
+                fb.classList.remove("selected");
+                fb.classList.add("deselected");
             } else {
-                fb.innerHTML = "Correct!";
+                label.setAttribute('data-selected', "true");
+                if ("feedback" in label.dataset) {
+                    fb.innerHTML = jaxify(label.dataset.feedback);
+                } else {
+                    fb.innerHTML = 'Selected: "' + response + '".';
+                }
+                label.classList.remove("deselectedButton");
+                void label.offsetWidth;
+                label.classList.add("selectedButton");
+                fb.className = "Feedback";
+                fb.classList.remove("deselected");
+                fb.classList.add("selected");
             }
-            label.classList.add("correctButton");
-
-            fb.className = "Feedback";
-            fb.classList.add("correct");
-
         } else {
-            if ("feedback" in label.dataset) {
-                fb.innerHTML = jaxify(label.dataset.feedback);
+            // Legacy: show correctness feedback.
+            if (label.dataset.correct == "true") {
+                if ("feedback" in label.dataset) {
+                    fb.innerHTML = jaxify(label.dataset.feedback);
+                } else {
+                    fb.innerHTML = "Correct!";
+                }
+                label.classList.add("correctButton");
+                fb.className = "Feedback";
+                fb.classList.add("correct");
             } else {
-                fb.innerHTML = "Incorrect -- try again.";
+                if ("feedback" in label.dataset) {
+                    fb.innerHTML = jaxify(label.dataset.feedback);
+                } else {
+                    fb.innerHTML = "Incorrect -- try again.";
+                }
+                label.classList.add("incorrectButton");
+                fb.className = "Feedback";
+                fb.classList.add("incorrect");
             }
-            //console.log("Error action");
-            label.classList.add("incorrectButton");
-            fb.className = "Feedback";
-            fb.classList.add("incorrect");
         }
-    }
-    else { /* Many choice (more than 1 correct answer) */
+
+        // Sidecar recorder (no-op without data-grade-id).  In hide mode we
+        // record whatever is currently selected (null when deselected); in
+        // legacy mode we record each click's target.
+        var __gradeId = outerContainer.dataset.gradeId;
+        if (__gradeId) {
+            var __selected;
+            if (hideMode) {
+                __selected = (label.dataset.selected == "true") ? response : null;
+            } else {
+                __selected = response;
+            }
+            recordResponse(__gradeId, qnum, {
+                type: "multiple_choice",
+                selected: __selected,
+            });
+        }
+    } else {
+        /* ----- Many-choice path ----- */
+        var outerContainer = fb.parentElement.parentElement;
+        var response = (label.innerText || label.textContent || "").trim();
+        var qnum = document.getElementById("quizWrap"+id).dataset.qnum;
         var reset = false;
         var feedback;
-         if (label.dataset.correct == "true") {
-            if ("feedback" in label.dataset) {
-                feedback = jaxify(label.dataset.feedback);
+
+        if (hideMode) {
+            // Toggle selection on the clicked label — no correctness hint.
+            if (label.dataset.selected == "true") {
+                label.setAttribute('data-selected', "false");
+                label.classList.remove("selectedButton");
+                void label.offsetWidth;
+                label.classList.add("deselectedButton");
+                feedback = 'Deselected: "' + response + '".';
+                fb.classList.remove("selected");
+                fb.classList.add("deselected");
             } else {
-                feedback = "Correct!";
+                label.setAttribute('data-selected', "true");
+                if ("feedback" in label.dataset) {
+                    feedback = jaxify(label.dataset.feedback);
+                } else {
+                    feedback = 'Selected: "' + response + '".';
+                }
+                label.classList.remove("deselectedButton");
+                void label.offsetWidth;
+                label.classList.add("selectedButton");
+                fb.className = "Feedback";
+                fb.classList.remove("deselected");
+                fb.classList.add("selected");
             }
-            if (label.dataset.answered <= 0) {
-                if (fb.dataset.answeredcorrect < 0) {
-                    fb.dataset.answeredcorrect = 1;
+        } else {
+            // Legacy: correct click accumulates, wrong click resets.
+            if (label.dataset.correct == "true") {
+                if ("feedback" in label.dataset) {
+                    feedback = jaxify(label.dataset.feedback);
+                } else {
+                    feedback = "Correct!";
+                }
+                if (label.dataset.answered <= 0) {
+                    if (fb.dataset.answeredcorrect < 0) {
+                        fb.dataset.answeredcorrect = 1;
+                        reset = true;
+                    } else {
+                        fb.dataset.answeredcorrect++;
+                    }
+                    if (reset) {
+                        for (var i = 0; i < answers.length; i++) {
+                            var child = answers[i];
+                            if (child.id != label.id) {
+                                if (child.dataset.selected == "true") {
+                                    child.setAttribute('data-selected', "false");
+                                    child.classList.remove("selectedButton");
+                                    void child.offsetWidth;
+                                    child.classList.add("deselectedButton");
+                                }
+                                if (child.classList.contains("correctButton")) child.classList.remove("correctButton");
+                                if (child.classList.contains("incorrectButton")) child.classList.remove("incorrectButton");
+                                child.dataset.answered = 0;
+                            }
+                        }
+                    }
+                    label.classList.add("correctButton");
+                    label.dataset.answered = 1;
+                    fb.className = "Feedback";
+                    fb.classList.add("correct");
+                }
+            } else {
+                if ("feedback" in label.dataset) {
+                    feedback = jaxify(label.dataset.feedback);
+                } else {
+                    feedback = "Incorrect -- try again.";
+                }
+                if (fb.dataset.answeredcorrect > 0) {
+                    fb.dataset.answeredcorrect = -1;
                     reset = true;
                 } else {
-                    fb.dataset.answeredcorrect++;
+                    fb.dataset.answeredcorrect--;
                 }
                 if (reset) {
                     for (var i = 0; i < answers.length; i++) {
                         var child = answers[i];
-                        child.className = "MCButton";
-                        child.dataset.answered = 0;
+                        if (child.id != label.id) {
+                            if (child.dataset.selected == "true") {
+                                child.setAttribute('data-selected', "false");
+                                child.classList.remove("selectedButton");
+                                void child.offsetWidth;
+                                child.classList.add("deselectedButton");
+                            }
+                            if (child.classList.contains("correctButton")) child.classList.remove("correctButton");
+                            if (child.classList.contains("incorrectButton")) child.classList.remove("incorrectButton");
+                            child.dataset.answered = 0;
+                        }
                     }
                 }
-                label.classList.add("correctButton");
-                label.dataset.answered = 1;
+                label.classList.add("incorrectButton");
                 fb.className = "Feedback";
-                fb.classList.add("correct");
-
+                fb.classList.add("incorrect");
             }
-        } else {
-            if ("feedback" in label.dataset) {
-                feedback = jaxify(label.dataset.feedback);
-            } else {
-                feedback = "Incorrect -- try again.";
-            }
-            if (fb.dataset.answeredcorrect > 0) {
-                fb.dataset.answeredcorrect = -1;
-                reset = true;
-            } else {
-                fb.dataset.answeredcorrect--;
-            }
-
-            if (reset) {
-                for (var i = 0; i < answers.length; i++) {
-                    var child = answers[i];
-                    child.className = "MCButton";
-                    child.dataset.answered = 0;
-                }
-            }
-            label.classList.add("incorrectButton");
-            fb.className = "Feedback";
-            fb.classList.add("incorrect");
         }
-        // What follows is for the saved responses stuff
-        var outerContainer = fb.parentElement.parentElement;
+
+        // DOM data-responses update (unified Set-based — a click toggles
+        // the response's presence, treating correct and incorrect alike).
         var responsesContainer = document.getElementById("responses" + outerContainer.id);
         if (responsesContainer) {
-            //console.log(responsesContainer);
-            var response = label.firstChild.innerText;
-            if (label.querySelector(".QuizCode")){
-                response+= label.querySelector(".QuizCode").firstChild.innerText;
-            }
-            console.log(response);
-            //console.log(document.getElementById("quizWrap"+id));
-            var qnum = document.getElementById("quizWrap"+id).dataset.qnum;
-            console.log("Question " + qnum);
-            //console.log(id, ", got numcorrect=",fb.dataset.numcorrect);
-            var responses=JSON.parse(responsesContainer.dataset.responses);
-            if (label.dataset.correct == "true") {
-                if (typeof(responses[qnum]) == "object"){
-                    if (!responses[qnum].includes(response))
-                        responses[qnum].push(response);
-                } else{
-                    responses[qnum]= [ response ];
-                }
+            var responses = JSON.parse(responsesContainer.dataset.responses);
+            var these_responses;
+            if (typeof(responses[qnum]) == "object" && responses[qnum] !== null) {
+                these_responses = new Set(responses[qnum]);
             } else {
-                responses[qnum]= response;
+                these_responses = new Set();
             }
-            console.log(responses);
+            if (label.dataset.selected == "true") {
+                these_responses.add(response);
+            } else {
+                these_responses.delete(response);
+            }
+            responses[qnum] = Array.from(these_responses);
             responsesContainer.setAttribute('data-responses', JSON.stringify(responses));
             printResponses(responsesContainer);
         }
-        // End save responses stuff
 
-
-
-        var numcorrect = fb.dataset.numcorrect;
-        var answeredcorrect = fb.dataset.answeredcorrect;
-        if (answeredcorrect >= 0) {
-            fb.innerHTML = feedback + " [" + answeredcorrect + "/" + numcorrect + "]";
-        } else {
-            fb.innerHTML = feedback + " [" + 0 + "/" + numcorrect + "]";
+        // Sidecar recorder (no-op without data-grade-id).  Source of truth
+        // is data-selected when hide mode is active; .correctButton is the
+        // legacy fallback.
+        var __gradeId = outerContainer.dataset.gradeId;
+        if (__gradeId) {
+            var __selected = [];
+            for (var __i = 0; __i < answers.length; __i++) {
+                var __ans = answers[__i];
+                var __match;
+                if (hideMode) {
+                    __match = __ans.dataset && __ans.dataset.selected == "true";
+                } else {
+                    __match = __ans.classList && __ans.classList.contains('correctButton');
+                }
+                if (__match) {
+                    __selected.push((__ans.innerText || __ans.textContent || "").trim());
+                }
+            }
+            recordResponse(__gradeId, qnum, {
+                type: "many_choice",
+                selected: __selected,
+            });
         }
 
-
+        // Feedback display: the legacy "N/M correct" counter leaks the
+        // total number of correct answers, so in hide mode we suppress it.
+        if (hideMode) {
+            fb.innerHTML = feedback;
+        } else {
+            var numcorrect = fb.dataset.numcorrect;
+            var answeredcorrect = fb.dataset.answeredcorrect;
+            if (answeredcorrect >= 0) {
+                fb.innerHTML = feedback + " [" + answeredcorrect + "/" + numcorrect + "]";
+            } else {
+                fb.innerHTML = feedback + " [" + 0 + "/" + numcorrect + "]";
+            }
+        }
     }
 
     if (typeof MathJax != 'undefined') {
         var version = MathJax.version;
-        console.log('MathJax version', version);
         if (version[0] == "2") {
             MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
         } else if (version[0] == "3") {
             MathJax.typeset([fb]);
         }
-    } else {
-        console.log('MathJax not detected');
     }
-
 }
 
 
-/* Function to produce the HTML buttons for a multiple choice/
-   many choice question  and to update the CSS tags based on
-   the question type */
+/* Function to produce the HTML buttons for a multiple choice /
+   many choice question and to update the CSS tags based on the
+   question type.
+
+   Uses a plain <button type="button"> per answer.  The previous
+   <label>+<input type="radio"> pattern caused click events to fire
+   twice on each user click (once for the original target, once for
+   the browser-synthesized click on the radio), which broke hide-mode
+   toggle semantics. */
 function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
 
     var shuffled;
     if (shuffle_answers == true) {
-        //console.log(shuffle_answers+" read as true");
         shuffled = getRandomSubarray(qa.answers, qa.answers.length);
     } else {
-        //console.log(shuffle_answers+" read as false");
         shuffled = qa.answers;
     }
-
 
     var num_correct = 0;
 
     shuffled.forEach((item, index, ans_array) => {
-        //console.log(answer);
-
-        // Make label for input element
-        var lab = document.createElement("label");
-        lab.className = "MCButton";
-        lab.id = id + '-' + index;
-        lab.onclick = check_mc;
-
-        // Make input element
-        var inp = document.createElement("input");
-        inp.type = "radio";
-        inp.id = "quizo" + id + index;
-        inp.name = "mcgroup-" + id; // for grouping radios
-        inp.className = "sr-only"; // or "visually-hidden" or whatever you call it
-
-
-        lab.append(inp); // input is now inside the label
+        var btn = document.createElement("button");
+        btn.type = "button"; // prevent any enclosing-form submit semantics
+        btn.className = "MCButton";
+        btn.id = id + '-' + index;
+        btn.onclick = check_mc;
 
         var aSpan = document.createElement('span');
         if ("answer" in item) {
             aSpan.innerHTML = jaxify(item.answer);
         }
-        lab.append(aSpan);
+        btn.append(aSpan);
 
-        // Create div for code inside question
+        // Optional inline code block
         if ("code" in item) {
             var codeSpan = document.createElement('span');
             codeSpan.id = "code" + id + index;
@@ -250,23 +336,30 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
             var codeCode = document.createElement('code');
             codePre.append(codeCode);
             codeCode.innerHTML = item.code;
-            lab.append(codeSpan);
+            btn.append(codeSpan);
         }
 
-        // Set the data attributes for the answer
-        lab.setAttribute('data-correct', item.correct);
+        // Selection state (always starts false).
+        btn.setAttribute('data-selected', "false");
+
+        // Hide-correctness flag for this answer.
+        if ("hide" in item) {
+            btn.setAttribute('data-hide', item.hide);
+        } else {
+            btn.setAttribute('data-hide', "false");
+        }
+
+        // Correctness metadata (always set for SC/many decision via numcorrect).
+        btn.setAttribute('data-correct', item.correct);
         if (item.correct) {
             num_correct++;
         }
         if ("feedback" in item) {
-            lab.setAttribute('data-feedback', item.feedback);
+            btn.setAttribute('data-feedback', item.feedback);
         }
-        lab.setAttribute('data-answered', 0);
+        btn.setAttribute('data-answered', 0);
 
-        // Only append the label (input is inside)
-        aDiv.append(lab);
-
-
+        aDiv.append(btn);
     });
 
     if (num_correct > 1) {
@@ -276,13 +369,13 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
     }
 
     return num_correct;
-
 }
+
+
 // Object-oriented wrapper for MC/MANY choice
 class MCQuestion extends Question {
     constructor(qa, id, idx, opts, rootDiv) { super(qa, id, idx, opts, rootDiv); }
     render() {
-        //console.log("options.shuffleAnswers " + this.options.shuffleAnswers);
         const numCorrect = make_mc(
             this.qa,
             this.options.shuffleAnswers,

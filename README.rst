@@ -33,13 +33,11 @@ Installation
 Quick start
 -----------
 
-Register the preprocessor in ``nbgrader_config.py``:
+Register the preprocessor at the front of your ``nbgrader_config.py``:
 
 .. code-block:: python
 
-    c.GenerateAssignment.preprocessors = [
-        "nbgrader_jupyterquiz.CreateQuiz",
-    ]
+    c.GenerateAssignment.preprocessors.insert(0, "nbgrader_jupyterquiz.CreateQuiz")
 
 Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
 ``#### End Quiz`` delimiters:

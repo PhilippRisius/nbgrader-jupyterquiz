@@ -54,6 +54,19 @@ def parse_cell(
 
         for lines in question_lines:
             question = parse_question(lines)
+
+            # Propagate the quiz-level hide_correctness option onto the
+            # question tree.  MC / many-choice answers consume ``hide``
+            # per-answer (see multiple_choice.js ``check_mc``); numeric
+            # consumes ``hide`` per-question (see numeric.js
+            # ``check_numeric``).
+            if quiz_options.get("hide_correctness"):
+                if question["type"] in ("multiple_choice", "many_choice"):
+                    for answer in question["answers"]:
+                        answer.setdefault("hide", True)
+                elif question["type"] == "numeric":
+                    question.setdefault("hide", True)
+
             try:
                 validate.validate_question(question)
             except jsonschema.exceptions.ValidationError:
@@ -63,6 +76,15 @@ def parse_cell(
 
         if not questions:
             raise ParseError("Quiz region without any parsable questions found.")
+
+        # If any question in this quiz carries an explicit ``points`` value
+        # (``{N}`` marker), set the default ``points: 1`` on every other
+        # question so the rendered quiz displays a badge on every question
+        # consistently.  When no question has explicit points, leave the
+        # field unset — the quiz is unweighted and the display stays clean.
+        if any("points" in q for q in questions):
+            for q in questions:
+                q.setdefault("points", 1)
 
         quizzes.append(Quiz(quiz_options, questions))
 
@@ -175,9 +197,21 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
     -------
     dict
         Quiz options dict with keys ``encoded``, ``inline``, ``hidden``,
-        ``filename``.  Omitted keys retain their defaults.
+        ``filename``, ``hide_correctness``.  Omitted keys retain their
+        defaults.  ``hide_correctness=true`` propagates ``hide: true`` to
+        every MC / many-choice answer so the display hides correctness
+        feedback and shows a neutral Selected / Deselected state instead.
+        The default for ``hide_correctness`` is ``None`` (unspecified);
+        the preprocessor treats ``None`` as "off unless the host cell is
+        graded" and ``True``/``False`` as explicit opt-in/opt-out.
     """
-    result: dict[str, Any] = {"encoded": True, "inline": True, "hidden": True, "filename": None}
+    result: dict[str, Any] = {
+        "encoded": True,
+        "inline": True,
+        "hidden": True,
+        "filename": None,
+        "hide_correctness": None,
+    }
     for token in header.split():
         if "=" not in token:
             continue
@@ -277,6 +311,7 @@ def line_to_question(line: str) -> dict[str, Any]:
         "code": ("```", "```", lambda code: code.replace(r"\n", "\n")),
         "precision": ("[", "]", int),
         "answer_cols": ("<", ">", int),
+        "points": ("{", "}", int),
     }
 
     return parse_line(line.lstrip(" *"), **components)

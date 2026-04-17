@@ -108,6 +108,13 @@ line.
      - all
      - Number of columns for the answer layout.  Default: 2 (CSS default;
        reduced to 1 automatically on narrow screens).
+   * - ``{N}``
+     - all (graded quizzes)
+     - Points the question is worth.  Default: 1.  Shown to the student as
+       a small badge next to the question text (only when ``N ≠ 1``).  The
+       autograder awards ``N`` points if the answer is fully correct, zero
+       otherwise; the cell's total max_score is the sum over its
+       questions.
 
 Answer lines
 ------------
