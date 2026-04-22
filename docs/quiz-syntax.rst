@@ -72,15 +72,19 @@ Question types
 Every question line begins with ``*`` followed by a type code in parentheses
 and the question text in double quotes.
 
-+--------+------------------+-----------------------------+
-| Code   | Type             | Description                 |
-+========+==================+=============================+
-| ``SC`` | Single choice    | Exactly one correct answer  |
-+--------+------------------+-----------------------------+
-| ``MC`` | Many choice      | One or more correct answers |
-+--------+------------------+-----------------------------+
-| ``NM`` | Numeric          | Student enters a number     |
-+--------+------------------+-----------------------------+
++--------+------------------+------------------------------------+
+| Code   | Type             | Description                        |
++========+==================+====================================+
+| ``SC`` | Single choice    | Exactly one correct answer         |
+|        |                  | (enforced — any other count is a   |
+|        |                  | ``ParseError``)                    |
++--------+------------------+------------------------------------+
+| ``MC`` | Many choice      | Any number of correct answers;     |
+|        |                  | 0 or 1 correct answers logs a      |
+|        |                  | warning (likely meant ``SC``)      |
++--------+------------------+------------------------------------+
+| ``NM`` | Numeric          | Student enters a number            |
++--------+------------------+------------------------------------+
 
 Question options
 ~~~~~~~~~~~~~~~~

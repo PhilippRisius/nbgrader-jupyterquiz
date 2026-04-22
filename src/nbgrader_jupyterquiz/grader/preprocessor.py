@@ -129,6 +129,12 @@ class CreateQuiz(NbGraderPreprocessor):
         """
         Parse a cell, reraising ParseErrors on task cells and swallowing elsewhere.
 
+        Any non-fatal warnings raised by the parser (e.g. MC with 0 or 1
+        correct answers) are re-emitted through ``self.log.warning`` so
+        they surface in nbgrader's UI output.  Fatal parse errors on
+        task cells are logged through ``self.log.error`` before being
+        re-raised.
+
         Parameters
         ----------
         cell : NotebookNode
@@ -142,14 +148,25 @@ class CreateQuiz(NbGraderPreprocessor):
         cell_contents : list[str]
             Remaining lines of the cell with quiz regions stripped.
         """
+        grade_id = cell.metadata.get("nbgrader", {}).get("grade_id")
+        cell_ref = f"cell {grade_id!r}" if grade_id else "cell (unnamed)"
         try:
-            return parse.parse_cell(cell.source, self.begin_quiz_delimiter, self.end_quiz_delimiter)
-        except parse.ParseError:
+            quizzes, cell_contents = parse.parse_cell(
+                cell.source,
+                self.begin_quiz_delimiter,
+                self.end_quiz_delimiter,
+            )
+        except parse.ParseError as err:
             if utils.is_task(cell):
+                self.log.error("Quiz parse error in %s: %s", cell_ref, err)
                 raise
             if not self.enforce_metadata:
                 self.log.warning("Cell could not be parsed, but metadata enforcement is off.")
             return [], cell.source.split("\n")
+        for quiz in quizzes:
+            for warning in quiz.warnings:
+                self.log.warning("%s: %s", cell_ref, warning)
+        return quizzes, cell_contents
 
     def _handle_quiz_cell(
         self,

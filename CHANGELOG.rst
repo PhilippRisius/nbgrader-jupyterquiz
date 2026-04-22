@@ -14,7 +14,16 @@ Changelog
 
     Fixes
     ^^^^^
-    * No change.
+    * The instructor-declared question type (``SC`` / ``MC``) is now
+      authoritative at both parse time and render time.  Previously the
+      display silently switched a ``SC`` question with two ``+`` answers
+      to many-choice semantics (and vice-versa for ``MC`` with one ``+``),
+      producing responses the grader would then score as 0 because of
+      the ``type`` mismatch.  ``SC`` with anything other than exactly one
+      correct answer is now a hard ``ParseError``; ``MC`` with 0 or 1
+      correct answers is allowed but logs a warning.  Both warnings and
+      errors are now routed through ``CreateQuiz.log`` so they appear in
+      ``nbgrader``'s UI output with the offending cell's ``grade_id``.
 
 .. _changes_0.4.0:
 
