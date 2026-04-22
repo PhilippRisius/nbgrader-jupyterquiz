@@ -21,7 +21,9 @@ Changelog
       producing responses the grader would then score as 0 because of
       the ``type`` mismatch.  ``SC`` with anything other than exactly one
       correct answer is now a hard ``ParseError``; ``MC`` with 0 or 1
-      correct answers is allowed but logs a warning.
+      correct answers is allowed but logs a warning.  Both warnings and
+      errors are now routed through ``CreateQuiz.log`` so they appear in
+      ``nbgrader``'s UI output with the offending cell's ``grade_id``.
 
 .. _changes_0.4.0:
 

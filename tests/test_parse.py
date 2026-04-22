@@ -299,37 +299,28 @@ def test_parse_cell_sc_with_zero_correct_raises():
         parse_cell(source)
 
 
-def test_parse_cell_mc_with_one_correct_warns(caplog):
+def test_parse_cell_mc_with_one_correct_warns():
     """MC declared with exactly 1 correct answer is allowed but warns."""
-    import logging
-
     source = '#### Quiz\n* (MC) "Which is prime?"\n  + "2"\n  - "4"\n#### End Quiz'
-    with caplog.at_level(logging.WARNING, logger="nbgrader_jupyterquiz.grader.parse"):
-        quizzes, _ = parse_cell(source)
+    quizzes, _ = parse_cell(source)
     assert quizzes[0].questions[0]["type"] == "many_choice"
-    assert any("1 correct answer" in rec.message for rec in caplog.records)
+    assert any("1 correct answer" in w for w in quizzes[0].warnings)
 
 
-def test_parse_cell_mc_with_zero_correct_warns(caplog):
+def test_parse_cell_mc_with_zero_correct_warns():
     """MC declared with 0 correct answers is allowed but warns."""
-    import logging
-
     source = '#### Quiz\n* (MC) "Which of these apply?"\n  - "A"\n  - "B"\n#### End Quiz'
-    with caplog.at_level(logging.WARNING, logger="nbgrader_jupyterquiz.grader.parse"):
-        quizzes, _ = parse_cell(source)
+    quizzes, _ = parse_cell(source)
     assert quizzes[0].questions[0]["type"] == "many_choice"
-    assert any("0 correct answer" in rec.message for rec in caplog.records)
+    assert any("0 correct answer" in w for w in quizzes[0].warnings)
 
 
-def test_parse_cell_mc_with_multiple_correct_ok(caplog):
+def test_parse_cell_mc_with_multiple_correct_ok():
     """MC with 2+ correct answers is the happy path — no warning."""
-    import logging
-
     source = '#### Quiz\n* (MC) "Which are primes?"\n  + "2"\n  + "3"\n  - "4"\n#### End Quiz'
-    with caplog.at_level(logging.WARNING, logger="nbgrader_jupyterquiz.grader.parse"):
-        quizzes, _ = parse_cell(source)
+    quizzes, _ = parse_cell(source)
     assert quizzes[0].questions[0]["type"] == "many_choice"
-    assert not any("correct answer" in rec.message for rec in caplog.records)
+    assert quizzes[0].warnings == []
 
 
 def test_parse_cell_sc_with_exactly_one_correct_ok():
@@ -337,6 +328,7 @@ def test_parse_cell_sc_with_exactly_one_correct_ok():
     source = '#### Quiz\n* (SC) "Capital of France?"\n  + "Paris"\n  - "London"\n#### End Quiz'
     quizzes, _ = parse_cell(source)
     assert quizzes[0].questions[0]["type"] == "multiple_choice"
+    assert quizzes[0].warnings == []
 
 
 # ---------------------------------------------------------------------------

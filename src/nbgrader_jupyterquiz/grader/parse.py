@@ -1,15 +1,11 @@
 """Parse quiz question source from notebook cell markdown."""
 
 import dataclasses
-import logging
 from typing import Any
 
 import jsonschema.exceptions
 
 from nbgrader_jupyterquiz.grader import validate
-
-
-_log = logging.getLogger(__name__)
 
 
 class ParseError(Exception):
@@ -18,10 +14,18 @@ class ParseError(Exception):
 
 @dataclasses.dataclass
 class Quiz:
-    """A parsed quiz with options and a list of question dicts."""
+    """
+    A parsed quiz with options, a list of question dicts, and parse-time warnings.
+
+    ``warnings`` collects non-fatal issues the parser spotted (e.g. an
+    ``MC`` question with 0 or 1 correct answers).  Fatal issues raise
+    :class:`ParseError` instead.  Callers such as the ``CreateQuiz``
+    preprocessor surface these through ``nbgrader``'s UI logger.
+    """
 
     options: dict[str, Any]
     questions: list[dict[str, Any]]
+    warnings: list[str] = dataclasses.field(default_factory=list)
 
 
 def parse_cell(
@@ -44,7 +48,8 @@ def parse_cell(
     Returns
     -------
     quizzes : list[Quiz]
-        Parsed Quiz objects.
+        Parsed Quiz objects.  Non-fatal parse-time warnings are
+        attached to each quiz's ``warnings`` field.
     cell_contents : list[str]
         Remaining cell lines with quiz regions removed.
     """
@@ -55,6 +60,7 @@ def parse_cell(
         quiz_options = parse_quiz_options(header)
         question_lines = split_questions(quiz_lines)
         questions = []
+        warnings: list[str] = []
 
         for lines in question_lines:
             question = parse_question(lines)
@@ -76,7 +82,8 @@ def parse_cell(
             except jsonschema.exceptions.ValidationError:
                 raise
 
-            _check_choice_cardinality(question)
+            if warning := _check_choice_cardinality(question):
+                warnings.append(warning)
 
             questions.append(question)
 
@@ -92,19 +99,19 @@ def parse_cell(
             for q in questions:
                 q.setdefault("points", 1)
 
-        quizzes.append(Quiz(quiz_options, questions))
+        quizzes.append(Quiz(quiz_options, questions, warnings))
 
     return quizzes, cell_contents
 
 
-def _check_choice_cardinality(question: dict[str, Any]) -> None:
+def _check_choice_cardinality(question: dict[str, Any]) -> str | None:
     """
     Enforce SC/MC correct-answer counts declared by the instructor.
 
     Single-choice (``SC`` → ``multiple_choice``) must have exactly one
     correct answer — raises :class:`ParseError` otherwise.  Many-choice
     (``MC`` → ``many_choice``) may have any count, but 0 or 1 correct
-    answers are logged as warnings since the instructor likely meant
+    answers return a warning string since the instructor likely meant
     ``SC`` (for exactly 1) or a numeric/string question (for 0).
 
     Parameters
@@ -112,9 +119,15 @@ def _check_choice_cardinality(question: dict[str, Any]) -> None:
     question : dict
         Parsed question dict (already schema-validated).  Non-choice
         types are silently ignored.
+
+    Returns
+    -------
+    str or None
+        A warning message for the caller to surface, or ``None`` when
+        the question is fine (or unhandled).
     """
     if question.get("type") not in ("multiple_choice", "many_choice"):
-        return
+        return None
     n_correct = sum(1 for a in question.get("answers", []) if a.get("correct"))
     qtext = question.get("question", "")
     if question["type"] == "multiple_choice" and n_correct != 1:
@@ -122,11 +135,8 @@ def _check_choice_cardinality(question: dict[str, Any]) -> None:
             f"Single-choice (SC) question must have exactly one correct answer, found {n_correct}: {qtext!r}. Use (MC) for multi-answer questions.",
         )
     if question["type"] == "many_choice" and n_correct <= 1:
-        _log.warning(
-            "Many-choice (MC) question has %d correct answer(s): %r. Consider (SC) for single-answer questions.",
-            n_correct,
-            qtext,
-        )
+        return f"Many-choice (MC) question has {n_correct} correct answer(s): {qtext!r}. Consider (SC) for single-answer questions."
+    return None
 
 
 def find_quiz_regions(

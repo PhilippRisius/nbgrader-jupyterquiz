@@ -192,6 +192,43 @@ def test_parse_error_in_plain_cell_enforce_false_logs_warning(resources, caplog)
     assert any("could not be parsed" in r.message for r in caplog.records)
 
 
+def test_parse_error_in_task_cell_logs_error_before_reraise(preprocessor, resources, caplog):
+    """SC-cardinality error (and any ParseError) is logged via self.log.error on task cells."""
+    import logging
+
+    bad_source = """\
+#### Quiz
+* (SC) "Which are primes?"
+  + "2"
+  + "3"
+#### End Quiz"""
+    cell = task_cell(bad_source)
+    cell.metadata["nbgrader"]["grade_id"] = "bad-quiz"
+    nb = make_notebook(cell)
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(ParseError):
+            preprocessor.preprocess(nb, resources)
+    assert any("bad-quiz" in r.message and "exactly one correct answer" in r.message for r in caplog.records)
+
+
+def test_mc_cardinality_warning_surfaces_via_self_log(preprocessor, resources, caplog):
+    """Non-fatal MC warnings attach to Quiz.warnings and re-emit through self.log.warning."""
+    import logging
+
+    source = """\
+#### Quiz
+* (MC) "Which is prime?"
+  + "2"
+  - "4"
+#### End Quiz"""
+    cell = task_cell(source)
+    cell.metadata["nbgrader"]["grade_id"] = "mc-warn"
+    nb = make_notebook(cell)
+    with caplog.at_level(logging.WARNING):
+        preprocessor.preprocess(nb, resources)
+    assert any("mc-warn" in r.message and "1 correct answer" in r.message for r in caplog.records)
+
+
 def test_celltoolbar_metadata_removed(preprocessor, resources):
     nb = make_notebook(plain_cell("no quiz"))
     nb.metadata["celltoolbar"] = "Create Assignment"
