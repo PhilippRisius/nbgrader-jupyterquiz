@@ -1,11 +1,15 @@
 """Parse quiz question source from notebook cell markdown."""
 
 import dataclasses
+import logging
 from typing import Any
 
 import jsonschema.exceptions
 
 from nbgrader_jupyterquiz.grader import validate
+
+
+_log = logging.getLogger(__name__)
 
 
 class ParseError(Exception):
@@ -72,6 +76,8 @@ def parse_cell(
             except jsonschema.exceptions.ValidationError:
                 raise
 
+            _check_choice_cardinality(question)
+
             questions.append(question)
 
         if not questions:
@@ -89,6 +95,38 @@ def parse_cell(
         quizzes.append(Quiz(quiz_options, questions))
 
     return quizzes, cell_contents
+
+
+def _check_choice_cardinality(question: dict[str, Any]) -> None:
+    """
+    Enforce SC/MC correct-answer counts declared by the instructor.
+
+    Single-choice (``SC`` → ``multiple_choice``) must have exactly one
+    correct answer — raises :class:`ParseError` otherwise.  Many-choice
+    (``MC`` → ``many_choice``) may have any count, but 0 or 1 correct
+    answers are logged as warnings since the instructor likely meant
+    ``SC`` (for exactly 1) or a numeric/string question (for 0).
+
+    Parameters
+    ----------
+    question : dict
+        Parsed question dict (already schema-validated).  Non-choice
+        types are silently ignored.
+    """
+    if question.get("type") not in ("multiple_choice", "many_choice"):
+        return
+    n_correct = sum(1 for a in question.get("answers", []) if a.get("correct"))
+    qtext = question.get("question", "")
+    if question["type"] == "multiple_choice" and n_correct != 1:
+        raise ParseError(
+            f"Single-choice (SC) question must have exactly one correct answer, found {n_correct}: {qtext!r}. Use (MC) for multi-answer questions.",
+        )
+    if question["type"] == "many_choice" and n_correct <= 1:
+        _log.warning(
+            "Many-choice (MC) question has %d correct answer(s): %r. Consider (SC) for single-answer questions.",
+            n_correct,
+            qtext,
+        )
 
 
 def find_quiz_regions(

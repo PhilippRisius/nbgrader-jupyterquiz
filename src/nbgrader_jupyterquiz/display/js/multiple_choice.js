@@ -22,7 +22,7 @@ function check_mc() {
     var fb = document.getElementById("fb" + id);
     var hideMode = (label.dataset.hide == "true");
 
-    if (fb.dataset.numcorrect <= 1) {
+    if (fb.dataset.qtype == "multiple_choice") {
         /* ----- Single-choice path ----- */
         var outerContainer = fb.parentElement.parentElement;
         var response = (label.innerText || label.textContent || "").trim();
@@ -349,7 +349,6 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
             btn.setAttribute('data-hide', "false");
         }
 
-        // Correctness metadata (always set for SC/many decision via numcorrect).
         btn.setAttribute('data-correct', item.correct);
         if (item.correct) {
             num_correct++;
@@ -362,7 +361,7 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
         aDiv.append(btn);
     });
 
-    if (num_correct > 1) {
+    if (qa.type == "many_choice") {
         outerqDiv.className = "ManyChoiceQn";
     } else {
         outerqDiv.className = "MultipleChoiceQn";
@@ -389,6 +388,7 @@ class MCQuestion extends Question {
                 'repeat(' + this.qa.answer_cols + ', 1fr)';
         }
         this.fbDiv.dataset.numcorrect = numCorrect;
+        this.fbDiv.dataset.qtype = this.qa.type;
         this.wrapper.appendChild(this.fbDiv);
     }
 }
