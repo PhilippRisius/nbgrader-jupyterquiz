@@ -11,6 +11,7 @@ from nbgrader_jupyterquiz.grader.parse import (
     line_to_numeric_answer,
     line_to_question,
     parse_cell,
+    redact_answer_key,
     split_questions,
 )
 
@@ -392,6 +393,14 @@ def test_hide_correctness_skips_numeric_answers():
         assert "hide" not in answer
 
 
+def test_hide_correctness_propagates_to_numeric_question_level():
+    from nbgrader_jupyterquiz.grader.parse import parse_cell
+
+    source = '#### Quiz hide_correctness=true\n* (NM) "What is 2+2?"\n  + <4>\n#### End Quiz'
+    quizzes, _ = parse_cell(source)
+    assert quizzes[0].questions[0].get("hide") is True
+
+
 def test_question_points_parsed_from_braces():
     from nbgrader_jupyterquiz.grader.parse import parse_cell
 
@@ -525,3 +534,141 @@ def test_parse_cell_default_delimiter_ignored_when_custom_set():
     quizzes, remaining = parse_cell(source, begin_quiz_delimiter="## START", end_quiz_delimiter="## END")
     assert quizzes == []
     assert "#### Quiz" in remaining
+
+
+# ---------------------------------------------------------------------------
+# redact_answer_key
+# ---------------------------------------------------------------------------
+
+
+def test_redact_answer_key_mc_drops_correct_keeps_text_and_feedback():
+    questions = [
+        {
+            "type": "multiple_choice",
+            "question": "Q?",
+            "answers": [
+                {"answer": "A", "correct": True, "feedback": "Yes"},
+                {"answer": "B", "correct": False, "feedback": "No"},
+            ],
+        },
+    ]
+    redacted = redact_answer_key(questions)
+    for answer in redacted[0]["answers"]:
+        assert "correct" not in answer
+        assert "answer" in answer
+        assert "feedback" in answer
+
+
+def test_redact_answer_key_many_choice_drops_correct():
+    questions = [
+        {
+            "type": "many_choice",
+            "question": "Q?",
+            "answers": [
+                {"answer": "A", "correct": True},
+                {"answer": "B", "correct": True},
+                {"answer": "C", "correct": False},
+            ],
+        },
+    ]
+    redacted = redact_answer_key(questions)
+    for answer in redacted[0]["answers"]:
+        assert "correct" not in answer
+
+
+def test_redact_answer_key_numeric_drops_value_range_correct_keeps_feedback():
+    questions = [
+        {
+            "type": "numeric",
+            "question": "Q?",
+            "answers": [
+                {"type": "value", "value": 4, "correct": True, "feedback": "right"},
+                {"type": "range", "range": [3.9, 4.1], "correct": True, "feedback": "close"},
+                {"type": "default", "feedback": "nope"},
+            ],
+        },
+    ]
+    redacted = redact_answer_key(questions)
+    answers = redacted[0]["answers"]
+    assert "value" not in answers[0]
+    assert "correct" not in answers[0]
+    assert "type" not in answers[0]  # 'value' tag stripped — leaks match style
+    assert answers[0]["feedback"] == "right"
+    assert "range" not in answers[1]
+    assert "correct" not in answers[1]
+    assert "type" not in answers[1]  # 'range' tag stripped
+    assert answers[1]["feedback"] == "close"
+    # The 'default' tag IS consumed by numeric.js for fall-through feedback.
+    assert answers[2] == {"type": "default", "feedback": "nope"}
+
+
+def test_redact_answer_key_string_empties_answers():
+    questions = [
+        {
+            "type": "string",
+            "question": "Q?",
+            "answers": [
+                {"answer": "Paris", "correct": True, "feedback": "yes"},
+                {"type": "default", "feedback": "no"},
+            ],
+        },
+    ]
+    redacted = redact_answer_key(questions)
+    assert redacted[0]["answers"] == []
+    # Other top-level fields preserved.
+    assert redacted[0]["type"] == "string"
+    assert redacted[0]["question"] == "Q?"
+
+
+def test_redact_answer_key_does_not_mutate_input():
+    from typing import Any
+
+    questions: list[dict[str, Any]] = [
+        {
+            "type": "multiple_choice",
+            "question": "Q?",
+            "answers": [{"answer": "A", "correct": True}],
+        },
+        {
+            "type": "numeric",
+            "question": "Q2?",
+            "answers": [{"value": 4, "correct": True}],
+        },
+    ]
+    redact_answer_key(questions)
+    assert questions[0]["answers"][0]["correct"] is True
+    assert questions[1]["answers"][0]["value"] == 4
+    assert questions[1]["answers"][0]["correct"] is True
+
+
+def test_redact_answer_key_preserves_question_level_metadata():
+    questions = [
+        {
+            "type": "multiple_choice",
+            "question": "Q?",
+            "points": 2.5,
+            "answer_cols": 2,
+            "answers": [
+                {"answer": "A", "correct": True, "hide": True},
+                {"answer": "B", "correct": False, "hide": True},
+            ],
+        },
+    ]
+    redacted = redact_answer_key(questions)
+    assert redacted[0]["points"] == 2.5
+    assert redacted[0]["answer_cols"] == 2
+    for answer in redacted[0]["answers"]:
+        assert answer["hide"] is True
+        assert "correct" not in answer
+
+
+def test_redact_answer_key_empty_list():
+    assert redact_answer_key([]) == []
+
+
+def test_redact_answer_key_unknown_type_passes_through():
+    """Defensive: a future or unrecognised type is left untouched (not silently destroyed)."""
+    questions = [{"type": "future_type", "answers": [{"correct": True}]}]
+    redacted = redact_answer_key(questions)
+    assert redacted == questions
+    assert redacted is not questions  # still a deep copy
