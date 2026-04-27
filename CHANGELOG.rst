@@ -35,7 +35,7 @@ Changelog
       change does not affect grading.  Per-answer ``feedback`` strings
       are intentionally preserved.  Self-check quizzes
       (``hide_correctness=false``) still ship the full key, since the
-      JS needs it to colour buttons.
+      JS needs it to colour buttons (:pull:`22`).
 
 .. _changes_0.4.0:
 
