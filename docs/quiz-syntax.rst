@@ -153,7 +153,11 @@ fork, nbgrader-jupyterquiz adds two options that control grading:
        tracks ``graded``: hidden when graded, visible when not.
        Override in either direction (e.g. ``graded=false
        hide_correctness=true`` for a quiz that neither grades nor
-       reveals answers — useful for study mode).
+       reveals answers — useful for study mode).  When hide mode is
+       on, the answer key (``correct`` flags, numeric ``value`` /
+       ``range`` matches) is stripped from the embedded display JSON
+       — students cannot recover the key from the DOM.  The autograder
+       reads its own copy from a separate hidden-tests block.
 
 Answer lines
 ------------

@@ -71,6 +71,33 @@ returns a ``QuizResult`` whose ``.score`` — the final bare expression
 — becomes the cell's partial-credit grade.
 
 
+Where the answer key lives
+--------------------------
+
+A graded quiz auto-enables ``hide_correctness``, which has two
+effects.  The browser shows neutral "Selected" / "Recorded" feedback
+instead of green/red, and — equally important — the answer key is
+**not embedded into the release notebook at all**.  The display JSON
+keeps each question's text, choices, and pedagogical feedback strings,
+but drops the ``correct`` flags on multiple-choice answers and the
+``value`` / ``range`` matchers on numeric answers.  A student
+inspecting the DOM cannot recover the key.
+
+The autograder gets its copy from a different place: the
+``### BEGIN HIDDEN TESTS`` block above, which embeds the full
+``_questions = [...]`` literal.  ``ClearHiddenTests`` strips this
+block when nbgrader produces the release notebook, and
+``OverwriteCells`` restores it from the gradebook master at autograde
+time.  So the answer key travels along the instructor side of the
+pipeline — never along the student side.
+
+If you need correctness feedback to be visible (e.g. a self-check
+quiz inside a task cell), set ``hide_correctness=false`` explicitly.
+That re-enables the green / red UI **and** ships the full answer key
+into the release JSON, since the JS needs it to colour buttons.  The
+trade-off is intentional: hide mode is the secure mode.
+
+
 Mixing graded and self-check quizzes
 ====================================
 
@@ -113,8 +140,8 @@ interesting combinations:
      - Hidden (Selected/Deselected)
      - Yes
    * - ``#### Quiz hide_correctness=false``
-     - Visible (green / red)
-     - Yes (but leaky)
+     - Visible (green / red, answer key shipped to browser)
+     - Yes
    * - ``#### Quiz graded=false``
      - Visible (green / red)
      - No

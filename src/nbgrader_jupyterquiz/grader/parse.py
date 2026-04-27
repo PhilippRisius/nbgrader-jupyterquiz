@@ -1,5 +1,6 @@
 """Parse quiz question source from notebook cell markdown."""
 
+import copy
 import dataclasses
 from typing import Any
 
@@ -137,6 +138,67 @@ def _check_choice_cardinality(question: dict[str, Any]) -> str | None:
     if question["type"] == "many_choice" and n_correct <= 1:
         return f"Many-choice (MC) question has {n_correct} correct answer(s): {qtext!r}. Consider (SC) for single-answer questions."
     return None
+
+
+def redact_answer_key(questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Return a deep copy of ``questions`` with answer-key fields stripped.
+
+    The release notebook embeds question JSON into a hidden span the
+    student's browser loads.  Without redaction, the student can read
+    the answer key out of the DOM.  Stripping the matching fields makes
+    ``hide_correctness`` mode actually withhold the key, not just the
+    visual feedback.
+
+    The redaction is keyed off question ``type``:
+
+    - ``multiple_choice`` / ``many_choice``: drop ``correct`` from each
+      answer.  Keep ``answer``, ``code``, ``feedback``, ``hide``.
+    - ``numeric``: drop ``value``, ``range``, ``correct`` from each
+      answer.  Keep ``feedback`` and ``type=default`` entries so
+      fall-through "Incorrect, try again" feedback still works.
+    - ``string``: replace ``answers`` with an empty list.  String
+      questions are server-graded; the JS path only runs in self-check
+      mode (no hide-correctness), so an empty list is sufficient when
+      this function is called.
+
+    Per-answer ``feedback`` strings are intentionally preserved — they
+    are pedagogically valuable, and instructors who want them hidden
+    can omit them from the question source.
+
+    Parameters
+    ----------
+    questions : list[dict]
+        The full parsed-question list (typically ``Quiz.questions``).
+        Not mutated.
+
+    Returns
+    -------
+    list[dict]
+        Deep copy of ``questions`` with answer-key fields removed.
+        Safe to serialise into the release notebook's display JSON.
+    """
+    redacted = copy.deepcopy(questions)
+    for question in redacted:
+        qtype = question.get("type")
+        if qtype in ("multiple_choice", "many_choice"):
+            for answer in question.get("answers", []):
+                answer.pop("correct", None)
+        elif qtype == "numeric":
+            for answer in question.get("answers", []):
+                answer.pop("value", None)
+                answer.pop("range", None)
+                answer.pop("correct", None)
+                # The ``type`` field tags the parser's match style
+                # ("value" / "range" / "default"); stripping the matching
+                # fields above leaves any non-default tag dangling and
+                # leaks "there was a value match here".  Only the
+                # ``default`` tag is consumed by numeric.js.
+                if answer.get("type") != "default":
+                    answer.pop("type", None)
+        elif qtype == "string":
+            question["answers"] = []
+    return redacted
 
 
 def find_quiz_regions(

@@ -616,3 +616,116 @@ def test_graded_false_with_explicit_points_marker_renders_badge(preprocessor, re
     nb, _ = preprocessor.preprocess(nb, resources)
     task_src = nb.cells[0].source
     assert '"points": 2' in task_src
+
+
+# ---------------------------------------------------------------------------
+# Group J — Answer-key redaction in hide-correctness mode
+# ---------------------------------------------------------------------------
+
+
+def test_graded_quiz_release_json_strips_correct_flags(preprocessor, resources):
+    """
+    Graded quizzes auto-enable hide_correctness, so the embedded display
+    JSON in the release notebook must not carry ``"correct":`` flags.
+    """
+    nb = make_notebook(_graded_task_cell(QUIZ_SOURCE, "quiz-redact-1"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"correct"' not in task_src
+
+
+def test_graded_quiz_hidden_tests_block_keeps_full_answer_key(preprocessor, resources):
+    """
+    The autograder hidden-tests block (restored by ``OverwriteCells`` at
+    autograde time) carries the full answer key even when the release
+    JSON is redacted.
+    """
+    nb = make_notebook(_graded_task_cell(QUIZ_SOURCE, "quiz-redact-2"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    merged_src = nb.cells[1].source
+    # _questions = [...] block carries the dict literal with 'correct' keys
+    assert "'correct': True" in merged_src or '"correct": True' in merged_src
+    assert "'correct': False" in merged_src or '"correct": False' in merged_src
+
+
+def test_self_check_quiz_release_json_keeps_correct_flags(preprocessor, resources):
+    """
+    A self-check quiz (``graded=false``, ``hide_correctness`` not forced)
+    needs the answer key in the JSON for the JS to colour buttons
+    correctly — redaction must NOT fire here.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(task_cell(source))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"correct": true' in task_src or '"correct":true' in task_src
+
+
+def test_explicit_hide_correctness_on_self_check_redacts(preprocessor, resources):
+    """
+    If the instructor explicitly sets ``hide_correctness=true`` on an
+    ungraded quiz, the answer key should still be stripped — that is
+    the documented contract of hide-correctness mode.
+    """
+    source = '#### Quiz encoded=false graded=false hide_correctness=true\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(task_cell(source))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert '"correct"' not in task_src
+
+
+def test_graded_numeric_release_json_strips_value_and_range(preprocessor, resources):
+    """
+    Numeric questions ship their answer key via ``answer.value`` and
+    ``answer.range`` (the matching fields).  Redaction must drop both.
+    """
+    source = '#### Quiz encoded=false\n* (NM) "What is 2+2?"\n  + <4>\n* (NM) "Pick a number between 0 and 10"\n  + [0.0, 10.0]\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "quiz-numeric-redact"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    # The numeric matching fields must not survive into the release JSON.
+    # ``"value":`` and ``"range":`` are the exact keys json.dumps emits.
+    assert '"value"' not in task_src
+    assert '"range"' not in task_src
+    # The autograder block still has them.
+    merged_src = nb.cells[1].source
+    assert "'value'" in merged_src
+    assert "'range'" in merged_src
+
+
+def test_graded_quiz_release_json_keeps_feedback(preprocessor, resources):
+    """
+    Per-answer feedback strings stay in the redacted release JSON —
+    instructors who want them hidden can omit them from the source.
+    """
+    source = '#### Quiz encoded=false\n* (SC) "Q?"\n  + "A" (Yes, A is the answer.)\n  - "B" (No, B is wrong.)\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "quiz-feedback-keep"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert "Yes, A is the answer." in task_src
+    assert "No, B is wrong." in task_src
+    assert '"correct"' not in task_src
+
+
+def test_encoded_release_json_is_redacted(preprocessor, resources):
+    """
+    With ``encoded=true``, the embedded JSON is base64-wrapped before
+    being injected into the cell.  The redacted JSON must not contain
+    correct flags after base64 decoding either.
+    """
+    source = '#### Quiz encoded=true\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(_graded_task_cell(source, "quiz-redact-encoded"))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    # The hidden span's contents are the base64-encoded JSON; the test
+    # nb cell's source is the literal text of that span, including the
+    # base64 string between the ``>`` and ``</span>``.
+    start = task_src.index('class="')
+    span_start = task_src.index(">", start) + 1
+    span_end = task_src.index("</span>", span_start)
+    payload = task_src[span_start:span_end]
+    decoded = base64.b64decode(payload).decode("utf-8")
+    parsed = json.loads(decoded)
+    for question in parsed:
+        for answer in question.get("answers", []):
+            assert "correct" not in answer

@@ -263,7 +263,7 @@ class CreateQuiz(NbGraderPreprocessor):
                 if question["type"] in ("multiple_choice", "many_choice"):
                     for answer in question["answers"]:
                         answer.setdefault("hide", True)
-                elif question["type"] == "numeric":
+                elif question["type"] in ("numeric", "string"):
                     question.setdefault("hide", True)
 
     def _inject_quiz_content(
@@ -296,7 +296,8 @@ class CreateQuiz(NbGraderPreprocessor):
             Selector string passed as the first arg to ``display_quiz``:
             the filename when ``filename=`` is set, else ``"#<name>"``.
         """
-        questions_json = json.dumps(quiz.questions)
+        display_questions = parse.redact_answer_key(quiz.questions) if quiz.options.get("hide_correctness") else quiz.questions
+        questions_json = json.dumps(display_questions)
         if quiz.options.get("encoded"):
             questions_json = encode.to_base64(questions_json)
 

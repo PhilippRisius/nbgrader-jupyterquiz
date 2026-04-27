@@ -24,6 +24,18 @@ Changelog
       correct answers is allowed but logs a warning.  Both warnings and
       errors are now routed through ``CreateQuiz.log`` so they appear in
       ``nbgrader``'s UI output with the offending cell's ``grade_id``.
+    * ``hide_correctness=true`` (auto-on for graded quizzes) now strips
+      the answer key from the display JSON embedded into the release
+      notebook.  Previously, the full ``correct`` flags on
+      multiple-choice answers and the ``value`` / ``range`` matchers
+      on numeric answers shipped to the student's browser; only the
+      visual feedback was hidden.  The autograder receives its copy
+      from a separate hidden-tests block (stripped by
+      ``ClearHiddenTests``, restored by ``OverwriteCells``), so this
+      change does not affect grading.  Per-answer ``feedback`` strings
+      are intentionally preserved.  Self-check quizzes
+      (``hide_correctness=false``) still ship the full key, since the
+      JS needs it to colour buttons (:pull:`22`).
 
 .. _changes_0.4.0:
 

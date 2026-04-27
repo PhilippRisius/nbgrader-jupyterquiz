@@ -43,6 +43,7 @@ function check_string(ths, event) {
         var id = ths.id.split('-')[0];
         var submission = ths.value.trim();
         var fb = document.getElementById("fb" + id);
+        var hideMode = (ths.dataset.hide == "true");
         fb.style.display = "none";
         fb.innerHTML = "Incorrect -- try again.";
 
@@ -116,7 +117,16 @@ function check_string(ths, event) {
         }
 
         fb.style.display = "block";
-        if (correct) {
+        if (hideMode) {
+            ths.className = "Input-text";
+            ths.classList.add("selectedButton");
+            fb.className = "Feedback";
+            fb.classList.remove("deselected");
+            fb.classList.add("selected");
+            fb.innerHTML = (submission === "")
+                ? "Cleared."
+                : "Answer recorded: " + submission + ".";
+        } else if (correct) {
             ths.className = "Input-text";
             ths.classList.add("correctButton");
             fb.className = "Feedback";
@@ -158,8 +168,9 @@ function check_string(ths, event) {
         } else {
             console.log('MathJax not detected');
         }
-        // After correct answer, if next JupyterQuiz question exists and has a text input, scroll by current question height
-        if (correct) {
+        // Auto-advance focus: in legacy mode only on correct, in hide
+        // mode on any submission since correctness isn't revealed.
+        if (correct || hideMode) {
             var wrapper = ths.closest('.Quiz');
             if (wrapper) {
                 var nextWrapper = wrapper.nextElementSibling;
@@ -198,7 +209,10 @@ function make_string(qa, outerqDiv, qDiv, aDiv, id) {
     inp.type = "text";
     inp.id = id + "-0";
     inp.className = "Input-text";
-    inp.setAttribute('data-answers', JSON.stringify(qa.answers));
+    inp.setAttribute('data-answers', JSON.stringify(qa.answers || []));
+    if (qa.hide) {
+        inp.setAttribute('data-hide', "true");
+    }
     // Apply optional input width (approx. number of characters, in em units)
     if (qa.input_width != null) {
         inp.style['min-width'] = qa.input_width + 'em';

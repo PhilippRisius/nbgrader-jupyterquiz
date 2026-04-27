@@ -349,9 +349,11 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
             btn.setAttribute('data-hide', "false");
         }
 
-        btn.setAttribute('data-correct', item.correct);
-        if (item.correct) {
-            num_correct++;
+        if ("correct" in item) {
+            btn.setAttribute('data-correct', item.correct);
+            if (item.correct) {
+                num_correct++;
+            }
         }
         if ("feedback" in item) {
             btn.setAttribute('data-feedback', item.feedback);
