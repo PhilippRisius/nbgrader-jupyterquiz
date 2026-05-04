@@ -51,14 +51,23 @@ For each quiz region it:
 
 1. Parses the Markdown quiz source into a list of question dictionaries.
 2. Validates each question against the JSON schema.
-3. Base64-encodes the question data and injects it as a hidden ``<span>`` in the
-   cell source (``display:none``), so the correct answers are not visible to
-   students.
-4. Appends a new code cell that calls
-   :func:`~nbgrader_jupyterquiz.display_quiz` with a reference to the hidden span.
+3. In graded mode (the default for any quiz inside a Manually Graded Task
+   cell), redacts the answer key from the question data — drops the
+   ``correct`` flags and numeric ``value`` / ``range`` matchers.  See
+   :doc:`graded-quizzes` for the two-track storage model that keeps the
+   key on the autograder side.
+4. Base64-encodes the (possibly redacted) question data and injects it as a
+   hidden ``<span>`` in the cell source.  The span carries
+   ``tex2jax_ignore`` / ``mathjax_ignore`` classes so MathJax leaves the
+   embedded JSON untouched.
+5. Appends a code cell.  In graded mode, that cell carries an
+   nbgrader-tracked ``### BEGIN HIDDEN TESTS`` block embedding the full
+   answer key plus a call to :func:`~nbgrader_jupyterquiz.grade_quiz`.
+   In ungraded mode, it's a plain
+   :func:`~nbgrader_jupyterquiz.display_quiz` invocation.
 
-The released notebook contains no plaintext answer data.  Students see only the
-interactive widget.
+The released notebook contains no plaintext answer data in graded mode.
+Students see only the interactive widget.
 
 Distributing to students
 ------------------------
@@ -69,10 +78,16 @@ Distribute the release as usual (``nbgrader release_assignment``,
 Collecting and grading
 ----------------------
 
-Collect submissions as usual.  At this stage, quizzes are **self-checking
-only** — student answers are displayed in the browser but are not saved to the
-notebook file.  There is currently no mechanism to collect or grade quiz
-answers through nbgrader.  Grading support is planned for a future release.
+Collect submissions as usual.  Student responses are persisted by the
+display JS into a ``responses.json`` sidecar in the same directory as the
+notebook, keyed by ``grade_id``.  The sidecar is copied through every
+nbgrader pipeline stage alongside the notebook itself.
+
+At ``nbgrader autograde`` time, the hidden-tests block on each graded
+cell is restored from the gradebook master and re-executed; it reads the
+sidecar, calls :func:`~nbgrader_jupyterquiz.grade_quiz`, and the cell's
+bare ``_result.score`` expression feeds nbgrader's partial-credit
+machinery.  See :doc:`graded-quizzes` for the full workflow.
 
 Configuration
 -------------

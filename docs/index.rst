@@ -7,10 +7,12 @@ Welcome to nbgrader-jupyterquiz's documentation!
 
    readme
    installation
+   tutorial
    usage
    quiz-syntax
    nbgrader-pipeline
    graded-quizzes
+   how-to/index
    display-options
    contributing
    releasing

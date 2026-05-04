@@ -6,6 +6,11 @@ Usage
 release quizzes, and *students* who answer them.  The pages below cover both
 perspectives.
 
+:doc:`tutorial`
+    A guided first walk-through.  Install the package, write a tiny quiz,
+    release it as an assignment, answer it as a student, and watch
+    nbgrader autograde the result — end to end in about ten minutes.
+
 :doc:`quiz-syntax`
     How to write quiz questions in Markdown inside a Jupyter notebook cell —
     question types, answer lines, feedback, numeric ranges, and code blocks.
@@ -18,6 +23,10 @@ perspectives.
     How quizzes embedded in Manually Graded Task cells are auto-graded end-to-end —
     the ``responses.json`` sidecar, per-question points, graded / self-check modes,
     and the :func:`~nbgrader_jupyterquiz.grade_quiz` helper.
+
+:doc:`how-to/index`
+    Focused recipes: display a quiz outside nbgrader, write a numeric
+    range question, mix graded and manually-graded content in one cell.
 
 :doc:`display-options`
     Reference for :func:`~nbgrader_jupyterquiz.display_quiz` — layout, shuffling,

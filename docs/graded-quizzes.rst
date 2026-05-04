@@ -98,6 +98,58 @@ into the release JSON, since the JS needs it to colour buttons.  The
 trade-off is intentional: hide mode is the secure mode.
 
 
+Threat model and what the security boundary is
+----------------------------------------------
+
+The redaction protects against a student reading the answer key from
+the released notebook.  The threats it stops:
+
+* **Inspecting the DOM** — opening browser DevTools, expanding the
+  hidden span, and reading the embedded JSON.  Without redaction,
+  the student would see ``"correct": true`` on the right answers.
+  With redaction, the JSON contains text, choices, and feedback, but
+  no field that distinguishes correct from incorrect.
+* **Reading the notebook source as a file** — opening the released
+  ``.ipynb`` in a text editor.  Same protection: the redacted JSON
+  is what's on disk.
+* **Reverse-engineering from base64** — the ``encoded=true`` default
+  base64-encodes the JSON before embedding, but base64 is
+  obfuscation, not encryption.  ``window.atob(...)`` decodes
+  trivially, and a determined student would.  Redaction is what
+  removes the answer; encoding only saves them a click.
+
+What redaction does **not** protect:
+
+* **Per-answer feedback strings still ship.**  The redaction
+  drops ``correct`` flags and numeric matchers, but feedback
+  strings stay in the JSON because the JS needs them to render
+  the *Selected: ...* state.  That makes feedback a leaky channel
+  in graded mode: an instructor who writes
+  ``+ "Paris" (Correct!)`` or ``- "Berlin" (No, Berlin is in
+  Germany.)`` defeats the redaction by spelling out which answer
+  is which.  The rule of thumb: **omit per-answer feedback on
+  graded questions**; reserve it for ``graded=false`` self-check
+  quizzes, where correctness is openly visible anyway.  A bare
+  ``- (Hint: ...)`` *default* line on a numeric question is safe
+  — it fires on any unmatched submission and the JS overrides
+  per-answer feedback in hide mode regardless — but anything
+  that distinguishes one answer from another is a leak.
+* **Network-loaded quiz JSON is not redacted.**  If you pass a JSON
+  URL or filename to :func:`~nbgrader_jupyterquiz.display_quiz`
+  outside the preprocessor pipeline, the redaction step is skipped
+  — the JSON is loaded verbatim.  Stand-alone use of
+  ``display_quiz`` is for self-check, not graded mode.
+
+The security model is "the answer key never reaches the student's
+machine in graded mode."  That's the whole boundary the package
+controls.  Editing ``responses.json`` doesn't help a student because
+the file records their *submissions*, not correctness scores; the
+autograder grades them against an answer key the student never sees.
+Graded use as a real assessment is fine, with the same caveat that
+applies to any take-home exam: the package can't stop a student
+from getting outside help.
+
+
 Mixing graded and self-check quizzes
 ====================================
 
@@ -154,7 +206,7 @@ Per-question points
 ===================
 
 Questions can carry individual point weights via the ``{N}`` marker on
-the question line.  ``N`` is any positive number, including fractions
+the question line.  ``N`` is any positive number, including decimals
 like ``{0.5}``:
 
 .. code-block:: markdown
