@@ -36,6 +36,13 @@ Changelog
       are intentionally preserved.  Self-check quizzes
       (``hide_correctness=false``) still ship the full key, since the
       JS needs it to colour buttons (:pull:`22`).
+    * Deselected MC/many-choice answer buttons now keep the same dark
+      text colour as unselected buttons.  Previously
+      ``.deselectedButton`` set ``color: inherit``, which picked up the
+      light ``--jq-text-color`` from the question container — invisible
+      on the also-light ``--jq-mc-button-bg``.  A new
+      ``--jq-mc-button-text`` palette variable (default ``#333333``)
+      now drives both states.
 
 .. _changes_0.4.0:
 
