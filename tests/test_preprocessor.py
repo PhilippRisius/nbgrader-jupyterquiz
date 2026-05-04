@@ -729,3 +729,21 @@ def test_encoded_release_json_is_redacted(preprocessor, resources):
     for question in parsed:
         for answer in question.get("answers", []):
             assert "correct" not in answer
+
+
+def test_inline_unencoded_span_carries_mathjax_ignore_classes(preprocessor, resources):
+    r"""
+    The hidden quiz span carries ``tex2jax_ignore`` (MathJax v2) and
+    ``mathjax_ignore`` (MathJax v3) so MathJax doesn't rewrite
+    ``$...$`` content inside the embedded JSON payload, alongside the
+    per-quiz class used for ``getElementsByClassName`` lookup.
+    """
+    source = (
+        '#### Quiz encoded=false graded=false\n* (NM) "What is $\\int_0^1 2x \\, dx$?"\n  + <1> (Correct: $\\int_0^1 2x \\, dx = 1$.)\n#### End Quiz'
+    )
+    nb = make_notebook(task_cell(source))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+    assert "tex2jax_ignore" in task_src
+    assert "mathjax_ignore" in task_src
+    assert "test-nb:0.0" in task_src
