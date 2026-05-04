@@ -130,6 +130,9 @@ Available CSS variables:
    * - ``--jq-mc-button-border``
      - ``#e0e0e0e0``
      - Answer button border colour (88 % opacity)
+   * - ``--jq-mc-button-text``
+     - ``#333333``
+     - Answer button text colour (default and deselected state)
    * - ``--jq-mc-button-inset-shadow``
      - ``#555555``
      - Answer button inset shadow colour

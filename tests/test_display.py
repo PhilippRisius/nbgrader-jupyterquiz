@@ -14,6 +14,7 @@ _DOCUMENTED_CSS_VARS = {
     "--jq-numeric-bg",
     "--jq-mc-button-bg",
     "--jq-mc-button-border",
+    "--jq-mc-button-text",
     "--jq-mc-button-inset-shadow",
     "--jq-numeric-input-bg",
     "--jq-numeric-input-label",
