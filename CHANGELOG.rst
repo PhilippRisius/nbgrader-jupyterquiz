@@ -10,6 +10,11 @@ Changelog
 
     Changes
     ^^^^^^^
+    * Documentation reorganised along Diataxis: the toctree now
+      groups pages under *Get started*, *Tutorial*, *How-to*,
+      *Worked examples*, *Reference*, *Explanation*, and *Project*
+      captions.  The ad-hoc ``usage`` landing page is removed; the
+      example downloads moved to a proper :doc:`examples/index`.
     * New :doc:`tutorial` page walks through install → quiz authoring →
       release → submit → autograde end-to-end in about ten minutes.
     * New :doc:`how-to/index` section with three focused recipes:
@@ -20,14 +25,14 @@ Changelog
       gains a *Threat model* subsection spelling out what the
       redaction protects against (DOM inspection, source reading,
       base64 reverse-engineering) and what it doesn't (per-answer
-      feedback strings, ``responses.json`` tampering, stand-alone
+      feedback strings as a leaky channel, stand-alone
       ``display_quiz``).
     * :doc:`nbgrader-pipeline` "Collecting and grading" section
       replaced — it described the pre-v0.4.0 self-checking-only
       world.  It now describes the actual sidecar + autograde flow.
-    * New worked example ``nb3-physics-rich-content.ipynb`` (linked
-      from :doc:`usage` as a download) combines every feature in one
-      annotated notebook: MathJax in question / answer / feedback,
+    * New worked example ``nb3-physics-rich-content.ipynb`` (in the
+      :doc:`examples/index` page) combines every feature in one
+      annotated notebook: MathJax in question and answer labels,
       numeric value and range matching with precision, a code-block
       question, per-question points (including fractional weights),
       and a self-check warm-up inside a graded task.
