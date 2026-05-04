@@ -107,7 +107,7 @@
     background: var(--jq-mc-button-bg);
     border: 1px solid var(--jq-mc-button-border);
     border-radius: inherit;
-    color: #333333;
+    color: var(--jq-mc-button-text);
     padding: 10px;
     font-size: 16px;
     font-family: inherit;
@@ -225,7 +225,7 @@
 .deselectedButton {
     animation: select-anim 0.4s ease;
     animation-direction: reverse;
-    color: inherit;
+    color: var(--jq-mc-button-text);
     /*outline: none;*/
 }
 

@@ -36,6 +36,19 @@ Changelog
       are intentionally preserved.  Self-check quizzes
       (``hide_correctness=false``) still ship the full key, since the
       JS needs it to colour buttons (:pull:`22`).
+    * Deselected MC/many-choice answer buttons keep their dark text
+      colour instead of inheriting the surrounding container's light
+      text — previously invisible on dark JupyterHub themes after a
+      select-then-deselect.  A new ``--jq-mc-button-text`` palette
+      variable drives both the default and deselected states
+      (:pull:`23`).
+    * MathJax expressions (``$...$``) in question and feedback
+      strings render correctly with ``encoded=false`` quizzes.
+      Previously MathJax rewrote the embedded JSON in place,
+      breaking ``JSON.parse``; the hidden span now carries
+      ``tex2jax_ignore`` / ``mathjax_ignore`` classes so MathJax
+      skips it.  Default ``encoded=true`` quizzes were not affected
+      (:pull:`23`).
 
 .. _changes_0.4.0:
 

@@ -303,7 +303,12 @@ class CreateQuiz(NbGraderPreprocessor):
 
         if quiz.options.get("inline"):
             if quiz.options.get("hidden"):
-                cell_contents.append(f'<span style="display:none" id="{self.name}:{tag}" class="{self.name}:{tag}">{questions_json}</span>')
+                # ``tex2jax_ignore`` / ``mathjax_ignore`` keep MathJax
+                # from rewriting ``$...$`` inside the JSON payload.
+                span_json = questions_json.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                cell_contents.append(
+                    f'<span style="display:none" id="{self.name}:{tag}" class="{self.name}:{tag} tex2jax_ignore mathjax_ignore">{span_json}</span>'
+                )
             else:
                 cell_contents.append(f"{tag}={questions_json}")
 
