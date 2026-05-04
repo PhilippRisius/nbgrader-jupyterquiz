@@ -248,33 +248,81 @@ Numeric question
 Code-block question
 ~~~~~~~~~~~~~~~~~~~
 
-Line breaks inside a code block must be written as the two-character sequence
-``\n`` — the code block must fit on a single source line.
+Code blocks (`` ```...``` ``) may span multiple physical source lines —
+write them as you would a markdown fenced-code block.  Leading and
+trailing newlines around the content are stripped automatically.  The
+older single-line convention with literal ``\n`` continues to work.
 
 .. code-block:: markdown
 
     #### Quiz
-    * (SC) ```def f(x):\n    return x ** 2```
+    * (SC) "What does this Python function do?" ```
+    def f(x):
+        return x ** 2
+    ```
       + "It squares its argument."
       - "It doubles its argument."
       - "It returns the absolute value."
     #### End Quiz
 
-Parser limitations
-------------------
+Special characters in fields
+----------------------------
 
-The parser uses surrounding characters as field delimiters: ``"..."`` for text
-and answer content, ``(...)`` for feedback, and `` ```...``` `` for code
-blocks.  The following inputs cause a ``ParseError``:
+The parser uses surrounding characters as field delimiters: ``"..."`` for
+text and answer content, ``(...)`` for feedback, ``[...]`` for numeric
+ranges and precision, ``<...>`` for numeric values and answer-column
+counts, ``{...}`` for points, and `` ```...``` `` for code blocks.
+Each field type accepts the special characters that would otherwise
+collide with its delimiters:
 
-* **Double quotes inside** ``"..."`` **text or answer fields** — the parser
-  splits on the first ``"`` found, truncating the content.  *Workaround:* use
-  a code block (`` ```...``` ``), which does not interpret ``"`` as a
-  delimiter.
-* **A closing parenthesis inside** ``(...)`` **feedback** — the parser splits
-  on the first ``)`` found.
+* **Paired delimiters** (``(...)``, ``[...]``, ``{...}``, ``<...>``)
+  balance their own pair.  ``(Correct (with caveats))`` is one
+  feedback field with content ``Correct (with caveats)``; the inner
+  ``()`` is just text.  Other delimiter characters (``{``, ``[``,
+  ``"``, etc.) inside are inert: ``(feedback { )`` parses cleanly
+  even though the ``{`` has no matching ``}``.  An *unmatched*
+  same-pair character (like an emoticon ``:(``) needs a backslash
+  escape: ``(Sad face :\(.)`` parses as ``Sad face :(.``.  Same
+  rule for ``\)``, ``\\``, and the equivalents in other paired
+  delimiters.
+* **Quoted text** (``"..."``) accepts ``\"`` for a literal ``"`` and
+  ``\\`` for a literal ``\``.  Other backslash sequences pass through
+  unchanged, so LaTeX commands like ``$\int$``, ``$\alpha$``, and
+  ``$\tfrac{1}{2}$`` work without doubling.
+* **Code blocks** (`` ```...``` ``) tolerate ``"``, ``(``, ``)``,
+  ``\``, etc. freely — the parser only stops at the closing
+  triple-backtick.
 
-Code blocks (`` ```...``` ``) tolerate ``"``, ``(``, and ``)`` freely;
-embedded triple back-ticks are not supported.
+Multi-line fields
+-----------------
 
-These limitations are planned to be addressed in a future release.
+Any delimited field may span multiple physical source lines.  The
+continuation rule follows markdown-list indentation: continuation
+lines must be indented strictly more than the opening line's first
+non-whitespace column (column ``0`` for question lines, column ``2``
+for answer lines).  Code blocks are an exception — indentation is
+not checked, and any subsequent line is part of the block until the
+closing triple-backtick is reached, matching markdown's fenced-code
+semantics.
+
+.. code-block:: markdown
+
+    #### Quiz
+    * (SC) "Long question text
+        that wraps across two lines"
+      + "Answer with multi-line
+        feedback" (this feedback
+        also spans
+        multiple lines)
+    #### End Quiz
+
+A field that doesn't close before indentation drops back to the
+opener's column — or before the quiz region ends — raises a
+``ParseError`` naming the unclosed delimiter.
+
+Remaining limitations
+---------------------
+
+* **Embedded triple-backticks inside a code block** — the parser
+  stops at the first triple-backtick it sees.  Showing literal
+  triple-backtick syntax in a quiz prompt is not supported.

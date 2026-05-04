@@ -305,7 +305,13 @@ class CreateQuiz(NbGraderPreprocessor):
             if quiz.options.get("hidden"):
                 # ``tex2jax_ignore`` / ``mathjax_ignore`` keep MathJax
                 # from rewriting ``$...$`` inside the JSON payload.
-                span_json = questions_json.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                # Backslashes are doubled so JupyterLab's markdown
+                # renderer (which consumes ``\X`` punctuation escapes
+                # before the JS reads ``element.innerHTML``) leaves
+                # JSON's own ``\"`` / ``\\`` / ``\uXXXX`` escapes
+                # intact for ``JSON.parse``.  No-op for the default
+                # ``encoded=true`` path — base64 has no backslashes.
+                span_json = questions_json.replace("\\", "\\\\").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 cell_contents.append(
                     f'<span style="display:none" id="{self.name}:{tag}" class="{self.name}:{tag} tex2jax_ignore mathjax_ignore">{span_json}</span>'
                 )

@@ -672,3 +672,223 @@ def test_redact_answer_key_unknown_type_passes_through():
     redacted = redact_answer_key(questions)
     assert redacted == questions
     assert redacted is not questions  # still a deep copy
+
+
+# ---------------------------------------------------------------------------
+# Parser flexibility (v0.5.0 rewrite): balanced brackets, escapes, multi-line
+# ---------------------------------------------------------------------------
+
+
+# --- Single-line balanced bracket matching ---
+
+
+def test_mc_feedback_with_nested_parens():
+    """Balanced ``()`` matching: inner ``()`` is content, outer closes."""
+    result = line_to_mc_answer('  + "Yes" (Correct (with caveats))')
+    assert result["answer"] == "Yes"
+    assert result["feedback"] == "Correct (with caveats)"
+
+
+def test_mc_feedback_with_unmatched_other_delim():
+    """Other delimiter chars inside a paired field are inert."""
+    result = line_to_mc_answer('  + "X" (feedback { )')
+    assert result["feedback"] == "feedback { "
+
+
+def test_mc_feedback_with_deeply_nested_parens():
+    result = line_to_mc_answer('  + "X" (a (b (c) d) e)')
+    assert result["feedback"] == "a (b (c) d) e"
+
+
+def test_mc_feedback_with_escaped_unmatched_paren():
+    r"""``\(`` inside ``(...)`` allows an unmatched ``(`` (e.g. emoticon)."""
+    result = line_to_mc_answer(r'  + "X" (Sad face :\( without context.)')
+    assert result["feedback"] == "Sad face :( without context."
+
+
+def test_mc_feedback_with_escaped_close_paren():
+    r"""``\)`` inside ``(...)`` allows an unmatched ``)``."""
+    result = line_to_mc_answer(r'  + "X" (Smiley :\) here.)')
+    assert result["feedback"] == "Smiley :) here."
+
+
+# --- Same-character escape syntax ---
+
+
+def test_mc_answer_with_escaped_quote():
+    r"""``\"`` inside ``"..."`` is a literal ``"``."""
+    result = line_to_mc_answer(r'  + "He said \"hello\""')
+    assert result["answer"] == 'He said "hello"'
+
+
+def test_mc_answer_with_escaped_backslash():
+    r"""``\\`` inside ``"..."`` is a literal ``\``."""
+    result = line_to_mc_answer(r'  + "C:\\path\\to\\file"')
+    assert result["answer"] == r"C:\path\to\file"
+
+
+def test_question_text_with_escaped_quote():
+    result = line_to_question(r'* (SC) "What is \"foo\"?"')
+    assert result["question"] == 'What is "foo"?'
+
+
+def test_latex_passes_through_unchanged():
+    r"""``\int``, ``\alpha`` etc. are not escapes — pass through verbatim."""
+    result = line_to_mc_answer(r'  + "$\int_0^1 \alpha \, dx$"')
+    assert result["answer"] == r"$\int_0^1 \alpha \, dx$"
+
+
+def test_question_text_with_latex_unchanged():
+    result = line_to_question(r'* (SC) "Compute $\tfrac{1}{2} m v^2$"')
+    assert result["question"] == r"Compute $\tfrac{1}{2} m v^2$"
+
+
+# --- Code blocks tolerate special characters ---
+
+
+def test_code_block_in_question_with_quotes():
+    r"""Triple-backtick code block tolerates ``"`` freely."""
+    result = line_to_question('* (SC) "Q?" ```print("hi")```')
+    assert result["code"] == 'print("hi")'
+
+
+def test_code_block_in_answer_with_quotes_and_parens():
+    result = line_to_mc_answer('  + "Label" ```re.match(r"\\d+", "abc(123)")```')
+    assert result["answer"] == "Label"
+    # backslash inside a code block is inert (no escape support there)
+    assert result["code"] == r're.match(r"\d+", "abc(123)")'
+
+
+# --- Unterminated fields raise ParseError ---
+
+
+def test_unterminated_quote_raises():
+    with pytest.raises(ParseError, match="Unterminated"):
+        line_to_question('* (SC) "no closing quote here')
+
+
+def test_unterminated_paren_raises():
+    with pytest.raises(ParseError, match="Unterminated"):
+        line_to_mc_answer('  + "x" (feedback never closes')
+
+
+def test_unterminated_code_block_raises():
+    with pytest.raises(ParseError, match="Unterminated"):
+        line_to_question('* (SC) "Q" ```code never closes')
+
+
+# --- Multi-line content via split_questions ---
+
+
+def test_split_questions_multi_line_quoted_text():
+    """A ``"..."`` field that spans multiple physical lines is one logical line."""
+    lines = [
+        '* (SC) "Long question',
+        '    spanning two lines"',
+        '  + "answer"',
+    ]
+    result = split_questions(lines)
+    assert len(result) == 1
+    assert result[0][0] == '* (SC) "Long question\n    spanning two lines"'
+    assert result[0][1] == '  + "answer"'
+
+
+def test_split_questions_multi_line_feedback():
+    lines = [
+        '* (SC) "Q?"',
+        '  + "A" (this is',
+        "      multi-line",
+        "      feedback)",
+        '  - "B"',
+    ]
+    result = split_questions(lines)
+    assert len(result) == 1
+    assert result[0][1] == '  + "A" (this is\n      multi-line\n      feedback)'
+    assert result[0][2] == '  - "B"'
+
+
+def test_split_questions_multi_line_code_block_in_question():
+    """A code block in a question line ignores indentation rules until ``"```"`` closes."""
+    lines = [
+        '* (SC) "What does this do?" ```',
+        "def f(x):",
+        "    return x ** 2",
+        "```",
+        '  + "Squares its argument"',
+    ]
+    result = split_questions(lines)
+    assert len(result) == 1
+    # The whole code block joins into the question logical line.
+    assert "def f(x):" in result[0][0]
+    assert "return x ** 2" in result[0][0]
+    assert result[0][1] == '  + "Squares its argument"'
+
+
+def test_split_questions_multi_line_code_block_in_answer():
+    lines = [
+        '* (SC) "Pick the doubler"',
+        "  + ```",
+        "x * 2",
+        "```",
+        "  - ```",
+        "x ** 2",
+        "```",
+    ]
+    result = split_questions(lines)
+    assert len(result) == 1
+    assert "x * 2" in result[0][1]
+    assert "x ** 2" in result[0][2]
+
+
+def test_split_questions_unterminated_multiline_raises():
+    """Drop-back to base indent without closing the field is an error."""
+    lines = [
+        '* (SC) "Long question',
+        "  + and a new line at base indent",
+    ]
+    with pytest.raises(ParseError, match="Unterminated"):
+        split_questions(lines)
+
+
+# --- End-to-end via parse_cell ---
+
+
+def test_parse_cell_multi_line_code_block_in_question():
+    source = """\
+#### Quiz
+* (SC) "What does this Python function do?" ```
+def double(x):
+    return x * 2
+```
+  + "Doubles its argument"
+  - "Squares its argument"
+#### End Quiz"""
+    quizzes, _ = parse_cell(source)
+    assert len(quizzes) == 1
+    q = quizzes[0].questions[0]
+    assert q["code"] == "def double(x):\n    return x * 2"
+    assert q["question"] == "What does this Python function do?"
+
+
+def test_parse_cell_nested_paren_feedback():
+    source = """\
+#### Quiz
+* (SC) "Q?"
+  + "Yes" (Correct (with caveats))
+  - "No"
+#### End Quiz"""
+    quizzes, _ = parse_cell(source)
+    answers = quizzes[0].questions[0]["answers"]
+    assert answers[0]["feedback"] == "Correct (with caveats)"
+
+
+def test_parse_cell_quote_inside_answer_text():
+    source = r"""#### Quiz
+* (SC) "Which sentence is grammatical?"
+  + "The cat said \"meow\"."
+  - "The cat said meow."
+#### End Quiz"""
+    quizzes, _ = parse_cell(source)
+    answers = quizzes[0].questions[0]["answers"]
+    assert answers[0]["answer"] == 'The cat said "meow".'
+    assert answers[1]["answer"] == "The cat said meow."
