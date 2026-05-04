@@ -25,6 +25,12 @@ Changelog
     * :doc:`nbgrader-pipeline` "Collecting and grading" section
       replaced — it described the pre-v0.4.0 self-checking-only
       world.  It now describes the actual sidecar + autograde flow.
+    * New worked example ``nb3-physics-rich-content.ipynb`` (linked
+      from :doc:`usage` as a download) combines every feature in one
+      annotated notebook: MathJax in question / answer / feedback,
+      numeric value and range matching with precision, a code-block
+      question, per-question points (including fractional weights),
+      and a self-check warm-up inside a graded task.
 
     Fixes
     ^^^^^

@@ -60,3 +60,12 @@ produce a student release.
     Companion to ``nb1-geography`` that additionally covers numeric
     questions with range answers, code-block question text, and a mix
     of integer and fractional weights.
+
+:download:`nb3-physics-rich-content.ipynb <examples/nb3-physics-rich-content.ipynb>`
+    A worked example combining every feature in one notebook,
+    framed as a short physics problem set.  Annotated cell-by-cell
+    with what's being demonstrated and why each combination is
+    interesting.  Covers MathJax in question / answer / feedback,
+    numeric value and range matching with precision, code-block
+    questions, per-question points, and a self-check warm-up
+    inside a graded task.
