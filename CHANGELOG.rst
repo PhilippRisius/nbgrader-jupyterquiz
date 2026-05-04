@@ -35,7 +35,7 @@ Changelog
       annotated notebook: MathJax in question and answer labels,
       numeric value and range matching with precision, a code-block
       question, per-question points (including fractional weights),
-      and a self-check warm-up inside a graded task.
+      and a self-check warm-up inside a graded task (:pull:`24`).
 
     Fixes
     ^^^^^
