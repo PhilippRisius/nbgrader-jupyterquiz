@@ -747,3 +747,48 @@ def test_inline_unencoded_span_carries_mathjax_ignore_classes(preprocessor, reso
     assert "tex2jax_ignore" in task_src
     assert "mathjax_ignore" in task_src
     assert "test-nb:0.0" in task_src
+
+
+def test_inline_unencoded_span_doubles_backslashes(preprocessor, resources):
+    r"""
+    JupyterLab's markdown renderer consumes ``\X`` punctuation
+    escapes inside our hidden span before the JS calls
+    ``JSON.parse``, which would corrupt JSON's own ``\"`` and
+    ``\\`` sequences.  ``CreateQuiz`` doubles every backslash in
+    the JSON before injection so the post-render text retains the
+    JSON escapes intact.
+    """
+    source = '#### Quiz encoded=false graded=false\n* (SC) "Use \\"quote\\" here"\n  + "He said \\"hi\\"."\n#### End Quiz'
+    nb = make_notebook(task_cell(source))
+    nb, _ = preprocessor.preprocess(nb, resources)
+    task_src = nb.cells[0].source
+
+    # Extract span content (post-nbformat decode = the markdown source
+    # JupyterLab will see and render).
+    import re
+
+    match = re.search(r'<span[^>]*class="[^"]*">(.*?)</span>', task_src)
+    assert match is not None
+    span_content = match.group(1)
+
+    # Each ``\"`` from json.dumps must appear as ``\\"`` (backslash-
+    # backslash-quote) in the markdown source so markdown's escape
+    # consumption leaves ``\"`` for JSON.parse.
+    assert r"\\" + '"' in span_content
+    # Sanity: simulate markdown's ``\X`` punctuation-escape consumption
+    # (each ``\X`` where X is ASCII punctuation becomes literal X) and
+    # confirm the result is parseable JSON.
+    md_punct = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    out: list[str] = []
+    i = 0
+    while i < len(span_content):
+        if span_content[i] == "\\" and i + 1 < len(span_content) and span_content[i + 1] in md_punct:
+            out.append(span_content[i + 1])
+            i += 2
+        else:
+            out.append(span_content[i])
+            i += 1
+    rendered = "".join(out)
+    parsed = json.loads(rendered)
+    assert parsed[0]["question"] == 'Use "quote" here'
+    assert parsed[0]["answers"][0]["answer"] == 'He said "hi".'

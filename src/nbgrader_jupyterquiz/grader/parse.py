@@ -257,34 +257,258 @@ def find_quiz_regions(
     return quizzes, remaining_lines
 
 
-def split_questions(quiz_source: list[str]) -> list[list[str]]:
+def _open_delim(text: str) -> str | None:
+    r"""
+    Return the delimiter currently open at the end of ``text``, or ``None`` if balanced.
+
+    Used by :func:`split_questions` to decide whether a multi-line
+    field has been completed.  Recognises the same delimiters
+    :func:`_scan_field` does: triple-backtick code blocks,
+    same-character ``"..."`` (with ``\\`` and ``\"`` escapes), and
+    paired ``(...)``, ``[...]``, ``{...}``, ``<...>`` with depth
+    tracking on the field's own pair (other delimiter characters
+    inside are inert).
+
+    Parameters
+    ----------
+    text : str
+        A buffer of accumulated quiz source — typically the
+        ``\n``-joined physical lines of an in-progress logical line.
+
+    Returns
+    -------
+    str or None
+        The opening delimiter still awaiting its closer, or ``None``
+        if the buffer is balanced.  Useful for both flow control and
+        error messages.
     """
+    pairs = {"(": ")", "[": "]", "{": "}", "<": ">"}
+    i = 0
+    n = len(text)
+    while i < n:
+        if text.startswith("```", i):
+            j = _skip_code_block(text, i)
+            if j is None:
+                return "```"
+            i = j
+        elif text[i] == '"':
+            j = _skip_quoted(text, i)
+            if j is None:
+                return '"'
+            i = j
+        elif text[i] in pairs:
+            j = _skip_paired(text, i, text[i], pairs[text[i]])
+            if j is None:
+                return text[i]
+            i = j
+        else:
+            i += 1
+    return None
+
+
+def _skip_code_block(text: str, start: int) -> int | None:
+    """
+    Skip past a triple-backtick code block in :func:`_open_delim`.
+
+    Parameters
+    ----------
+    text : str
+        Buffer being scanned.
+    start : int
+        Index of the opening triple-backtick in ``text``.
+
+    Returns
+    -------
+    int or None
+        Index just past the closing triple-backtick, or ``None`` if
+        the block is unterminated.
+    """
+    j = start + 3
+    n = len(text)
+    while j < n and not text.startswith("```", j):
+        j += 1
+    return None if j >= n else j + 3
+
+
+def _skip_quoted(text: str, start: int) -> int | None:
+    r"""
+    Skip past a same-character ``"..."`` field in :func:`_open_delim`.
+
+    Recognises ``\\`` and ``\"`` as escape sequences.
+
+    Parameters
+    ----------
+    text : str
+        Buffer being scanned.
+    start : int
+        Index of the opening ``"`` in ``text``.
+
+    Returns
+    -------
+    int or None
+        Index just past the closing ``"``, or ``None`` if the field
+        is unterminated.
+    """
+    j = start + 1
+    n = len(text)
+    while j < n:
+        if text[j] == "\\" and j + 1 < n and text[j + 1] in '\\"':
+            j += 2
+            continue
+        if text[j] == '"':
+            return j + 1
+        j += 1
+    return None
+
+
+def _skip_paired(text: str, start: int, left: str, right: str) -> int | None:
+    r"""
+    Skip past a paired delimited field in :func:`_open_delim`.
+
+    Tracks depth on the field's own ``left``/``right`` pair; other
+    delimiter characters are inert.  Recognises ``\<left>``,
+    ``\<right>``, and ``\\`` as escape sequences.
+
+    Parameters
+    ----------
+    text : str
+        Buffer being scanned.
+    start : int
+        Index of the opening ``left`` in ``text``.
+    left : str
+        Opening delimiter character.
+    right : str
+        Closing delimiter character.
+
+    Returns
+    -------
+    int or None
+        Index just past the matching closing delimiter, or ``None``
+        if the field is unterminated.
+    """
+    depth = 1
+    j = start + 1
+    n = len(text)
+    while j < n and depth > 0:
+        if text[j] == "\\" and j + 1 < n and text[j + 1] in (left, right, "\\"):
+            j += 2
+            continue
+        if text[j] == left:
+            depth += 1
+        elif text[j] == right:
+            depth -= 1
+        j += 1
+    return None if depth > 0 else j
+
+
+def split_questions(quiz_source: list[str]) -> list[list[str]]:
+    r"""
     Split lines of a quiz region into individual question blocks.
+
+    Each returned question is a list of *logical* lines — one for the
+    question itself, followed by one per answer.  A logical line may
+    span multiple physical source lines when its content extends
+    across them, joined with ``\n``.  Continuation is driven by
+    markdown-list indentation: a physical line is a continuation of
+    the active logical line iff its first-non-whitespace column is
+    strictly greater than the opener's column (``0`` for questions,
+    ``2`` for answers).  Code blocks delimited by triple-backticks
+    are an exception — physical lines inside an open code block are
+    appended regardless of indentation, matching markdown's
+    fenced-code semantics.
 
     Parameters
     ----------
     quiz_source : list[str]
-        Lines within a quiz delimiter region.
+        Physical lines within a quiz delimiter region.
 
     Returns
     -------
     list[list[str]]
-        Each inner list contains the question line followed by its answer lines.
+        Each inner list contains the question logical line followed
+        by its answer logical lines.  Each logical line is a single
+        ``str`` (possibly containing ``\n``).
+
+    Raises
+    ------
+    ParseError
+        If a logical line ends with an unclosed delimited field —
+        i.e. indentation drops back to the opener's level (or
+        beyond) while the field is still expecting its closer.
     """
-    questions = []
-    current_question: list[str] = []
+    questions: list[list[str]] = []
+    current_question: list[str] | None = None
+    current_logical: list[str] | None = None
+    current_base_indent: int | None = None
+
+    def flush_logical() -> None:
+        """Close the active logical line, validating its delimiters."""
+        nonlocal current_logical, current_base_indent
+        if current_logical is None:
+            return
+        logical_text = "\n".join(current_logical)
+        open_delim = _open_delim(logical_text)
+        if open_delim is not None:
+            raise ParseError(
+                f"Unterminated {open_delim!r} delimiter in quiz logical line: {logical_text!r}",
+            )
+        # current_question must already exist if we reached here;
+        # the opener handlers ensure that.
+        if current_question is None:  # pragma: no cover
+            raise ParseError("internal: flush_logical called without active question")
+        current_question.append(logical_text)
+        current_logical = None
+        current_base_indent = None
 
     for line in quiz_source:
-        if line.startswith("* "):
-            if current_question:
-                questions.append(current_question)
-            current_question = [line]
-        elif current_question:
-            if line.startswith("  +") or line.startswith("  -"):
-                current_question.append(line)
-        # else: comment or blank line — ignore
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
 
-    if current_question:
+        # Inside a code block currently open in the active logical
+        # buffer? — ignore indentation rules and append.
+        if current_logical is not None:
+            buffer_so_far = "\n".join(current_logical)
+            if _open_delim(buffer_so_far) == "```":
+                current_logical.append(line)
+                continue
+
+        # Pure-blank line: append to active logical if one exists,
+        # otherwise drop.  A trailing blank is fine; a blank in the
+        # middle of a multi-line field is preserved.
+        if not stripped:
+            if current_logical is not None:
+                current_logical.append(line)
+            continue
+
+        # Question opener: `* ` at column 0.
+        if indent == 0 and stripped.startswith("* "):
+            flush_logical()
+            if current_question is not None:
+                questions.append(current_question)
+            current_question = []
+            current_logical = [line]
+            current_base_indent = 0
+            continue
+
+        # Answer opener: `+` or `-` at column 2.
+        if indent == 2 and (stripped.startswith("+") or stripped.startswith("-")) and current_question is not None:
+            flush_logical()
+            current_logical = [line]
+            current_base_indent = 2
+            continue
+
+        # Continuation of the active logical line: indented strictly
+        # deeper than the opener.
+        if current_logical is not None and current_base_indent is not None and indent > current_base_indent:
+            current_logical.append(line)
+            continue
+
+        # Otherwise: outside content (e.g. comment between quizzes).
+        # Close any active logical and ignore.
+        flush_logical()
+
+    flush_logical()
+    if current_question is not None:
         questions.append(current_question)
 
     return questions
@@ -370,6 +594,116 @@ def parse_question(lines: list[str]) -> dict[str, Any]:
     return question
 
 
+def _scan_field(s: str, left: str, right: str) -> tuple[str, str]:
+    r"""
+    Extract a delimited field's content from ``s``, returning the content and remainder.
+
+    The string ``s`` must start with ``left``.  Walks forward to find the
+    matching closing delimiter and returns the captured inner content plus
+    whatever remains after the closing delimiter.
+
+    The exact tokenisation rule depends on the delimiters:
+
+    - **Paired delimiters** (``left != right``, e.g. ``"("`` / ``")"``)
+      track depth on the field's *own* pair only.  A nested ``left``
+      increments depth; a ``right`` at depth 0 closes the field.
+      Other delimiter characters inside (``{``, ``[``, ``"``, etc.) are
+      inert text.  This lets ``(Correct (with caveats))`` parse as one
+      feedback field with content ``Correct (with caveats)``, and
+      ``(feedback { )`` parse as ``feedback { `` (the unmatched ``{``
+      is just content).
+
+    - **Same-character delimiters** (``left == right``, e.g. ``"\""`` /
+      ``"\""``) recognise backslash escapes: ``\\`` is a literal ``\``,
+      and ``\<right>`` is a literal of the closing delimiter character.
+      Other backslash sequences (``\int``, ``\alpha``, etc.) pass
+      through unchanged so LaTeX content survives.
+
+    - **Multi-character delimiters** (e.g. triple-backtick ``"```"``)
+      are treated like same-character delimiters but without escape
+      support — the scanner walks character-by-character looking for
+      the literal closing sequence.  ``"``, ``(``, ``)``, ``\``, etc.
+      inside are all inert.  This matches markdown's fenced-code
+      semantics.
+
+    Parameters
+    ----------
+    s : str
+        Input string starting with ``left``.
+    left : str
+        Opening delimiter.  May be one or more characters.
+    right : str
+        Closing delimiter.  May be one or more characters.
+
+    Returns
+    -------
+    extracted : str
+        The content between the opening and closing delimiters
+        (exclusive on both sides), with escapes resolved.
+    remainder : str
+        Whatever follows the closing delimiter in ``s``.
+
+    Raises
+    ------
+    ParseError
+        If the closing delimiter is never found.
+    """
+    if not s.startswith(left):
+        raise ParseError(f"_scan_field called on string not starting with {left!r}: {s!r}")
+
+    i = len(left)
+    n = len(s)
+    paired = left != right and len(left) == 1 and len(right) == 1
+    same_char_single = left == right and len(left) == 1
+    depth = 1  # opening `left` already consumed
+    out_chars: list[str] = []
+
+    while i < n:
+        ch = s[i]
+
+        # Single-char delimiters honour backslash escapes.  ``\<right>``
+        # and ``\\`` are unescaped; ``\<left>`` is also unescaped on
+        # paired delimiters so an unmatched ``(`` (e.g. an emoticon
+        # ``:(`` inside feedback) can be written as ``\(``.  Any other
+        # ``\X`` passes through unchanged so LaTeX commands (``\int``,
+        # ``\alpha``) survive.
+        if (paired or same_char_single) and ch == "\\" and i + 1 < n:
+            nxt = s[i + 1]
+            if nxt == right or nxt == "\\" or (paired and nxt == left):
+                out_chars.append(nxt)
+                i += 2
+                continue
+            # fall through: literal backslash, then handle nxt next iteration
+
+        # Paired delimiters: track depth on `left`/`right`.
+        if paired:
+            if ch == left:
+                depth += 1
+                out_chars.append(ch)
+                i += 1
+                continue
+            if ch == right:
+                depth -= 1
+                if depth == 0:
+                    return "".join(out_chars), s[i + 1 :]
+                out_chars.append(ch)
+                i += 1
+                continue
+            out_chars.append(ch)
+            i += 1
+            continue
+
+        # Multi-character or same-character delimiters: look for the
+        # literal closing sequence at the current position.
+        if s.startswith(right, i):
+            return "".join(out_chars), s[i + len(right) :]
+
+        out_chars.append(ch)
+        i += 1
+
+    raise ParseError(f"Unterminated field: missing closing {right!r} after {left!r}: {s!r}")
+
+
 def parse_line(line: str, **components: tuple[str, str, Any]) -> dict[str, Any]:
     r"""
     Parse delimited components from a line and typecast them.
@@ -390,23 +724,54 @@ def parse_line(line: str, **components: tuple[str, str, Any]) -> dict[str, Any]:
     Raises
     ------
     ParseError
-        If a duplicate component is found or an unparsable segment remains.
+        If a duplicate component is found, the line ends with an
+        unparsable segment, or a delimited field is not closed.
     """
     parsed = {}
 
     while line:
         line = line.strip()
+        if not line:
+            break
         for component, (left, right, typecast) in components.items():
             if line.startswith(left):
                 if component in parsed:
                     raise ParseError(f"Duplicate component {component} found.")
-                extracted, line = line.removeprefix(left).split(sep=right, maxsplit=1)
+                extracted, line = _scan_field(line, left, right)
                 parsed[component] = typecast(extracted)
                 break
         else:
             raise ParseError(f"Non-parsable component found. Left to parse: {line!r}")
 
     return parsed
+
+
+def _normalise_code_block(code: str) -> str:
+    r"""
+    Normalise a captured code-block string for downstream display.
+
+    Two transformations are applied:
+
+    - Literal ``\n`` (the two-character sequence backslash + ``n``) is
+      replaced with a real newline.  This preserves the v0.4.x
+      authoring convention of writing single-line code blocks with
+      embedded ``\n`` markers.
+    - Leading and trailing newline whitespace is stripped.  Multi-line
+      fenced code (`` \`\`\` ``-on-its-own-line opening / closing)
+      naturally surrounds its content with newlines; users expect
+      those to vanish, matching markdown's fenced-code semantics.
+
+    Parameters
+    ----------
+    code : str
+        Raw captured content from the ``\`\`\`...\`\`\``` field.
+
+    Returns
+    -------
+    str
+        Normalised code suitable for display.
+    """
+    return code.replace(r"\n", "\n").strip("\n")
 
 
 def line_to_question(line: str) -> dict[str, Any]:
@@ -446,7 +811,7 @@ def line_to_question(line: str) -> dict[str, Any]:
     components = {
         "type": ("(", ")", lambda t: question_types.get(t)),
         "question": ('"', '"', str),
-        "code": ("```", "```", lambda code: code.replace(r"\n", "\n")),
+        "code": ("```", "```", _normalise_code_block),
         "precision": ("[", "]", int),
         "answer_cols": ("<", ">", int),
         "points": ("{", "}", _parse_points),
@@ -514,7 +879,7 @@ def line_to_mc_answer(line: str) -> dict[str, Any]:
     components = {
         "feedback": ("(", ")", str),
         "answer": ('"', '"', str),
-        "code": ("```", "```", lambda code: code.replace(r"\n", "\n")),
+        "code": ("```", "```", _normalise_code_block),
     }
 
     answer |= parse_line(line, **components)

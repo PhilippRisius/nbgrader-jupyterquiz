@@ -10,6 +10,27 @@ Changelog
 
     Changes
     ^^^^^^^
+    * Parser rework — paired delimiters (``(...)``, ``[...]``,
+      ``{...}``, ``<...>``) now balance their own pair, so
+      ``(Correct (with caveats))`` parses as one feedback field
+      with content ``Correct (with caveats)``.  Other delimiter
+      characters inside a paired field are inert: ``(feedback
+      { )`` parses cleanly.  Backslash escapes (``\(``, ``\)``,
+      ``\\``) handle deliberately unmatched same-pair
+      characters, so an emoticon like ``:(`` inside feedback
+      can be written as ``:\(``.  Same-character ``"..."``
+      fields accept ``\"`` for a literal ``"`` and ``\\`` for a
+      literal ``\``; other backslash sequences (``\int``,
+      ``\alpha``) pass through unchanged so LaTeX content
+      authors don't need to double their backslashes.
+      Multi-line content is supported in any field —
+      continuation lines must be indented strictly deeper than
+      the opener (matching markdown-list semantics).  Code
+      blocks (`` ```...``` ``) ignore the indentation rule and
+      tolerate any character until the closing triple-backtick,
+      so multi-line fenced code works without escaping.  An
+      unclosed field now raises a clearer ``ParseError`` naming
+      the missing delimiter (:pull:`26`).
     * Documentation reorganised along Diataxis: the toctree now
       groups pages under *Get started*, *Tutorial*, *How-to*,
       *Worked examples*, *Reference*, *Explanation*, and *Project*
