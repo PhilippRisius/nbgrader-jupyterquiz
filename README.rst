@@ -17,14 +17,15 @@ nbgrader-jupyterquiz
 **nbgrader-jupyterquiz** lets instructors embed interactive, gradeable quizzes
 directly inside Jupyter notebooks using a simple Markdown syntax.  During
 ``nbgrader generate_assignment`` the quiz source is transformed into interactive
-quiz cells (powered by a fork of `jupyterquiz`_); correct answers are hidden
-from students before the assignment is released.
+quiz cells (powered by a fork of `jupyterquiz`_), and the answer key is
+stripped from the released notebook.
 
-Starting in v0.4.0, quizzes placed in an nbgrader **Manually Graded Task**
-cell are automatically graded: student responses are persisted to a
+Quizzes placed in an nbgrader **Manually Graded Task** cell are
+automatically graded: student responses are persisted to a
 ``responses.json`` sidecar as they answer, and ``nbgrader autograde``
 evaluates them with partial-credit support.  Per-question points
-(including fractions like ``{0.5}``) are supported.  See the
+(including fractions like ``{0.5}``) are supported, and the Markdown
+syntax handles MathJax, code blocks, and multi-line content.  See the
 `graded-quizzes docs`_ for the full workflow.
 
 * Free software: MIT license
@@ -53,13 +54,14 @@ Write quizzes in **Manually Graded Task** cells using ``#### Quiz`` /
 
     #### Quiz
     * (SC) "What is the capital of France?"
-      + "Paris"         (Correct!)
+      + "Paris"
       - "London"
       - "Berlin"
     #### End Quiz
 
 Run ``nbgrader generate_assignment`` — quiz regions are replaced with
-interactive widgets and correct answers are hidden from students.
+interactive widgets and the answer key is stripped from the released
+notebook.  Student responses are auto-graded by ``nbgrader autograde``.
 
 See the `documentation <https://nbgrader-jupyterquiz.readthedocs.io>`_ for the
 full `quiz syntax <https://nbgrader-jupyterquiz.readthedocs.io/en/latest/quiz-syntax.html>`_,
@@ -125,6 +127,6 @@ This package was scaffolded with Cookiecutter_ and the
         :target: https://github.com/astral-sh/ruff
         :alt: Ruff
 
-.. |status| image:: https://www.repostatus.org/badges/latest/wip.svg
-        :target: https://www.repostatus.org/#wip
-        :alt: Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.
+.. |status| image:: https://www.repostatus.org/badges/latest/active.svg
+        :target: https://www.repostatus.org/#active
+        :alt: Project Status: Active – The project has reached a stable, usable state and is being actively developed.

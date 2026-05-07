@@ -11,14 +11,17 @@ A reminder for the **maintainers** on how to deploy. This section is only releva
 
     It is important to be aware that any changes to files found within the ``src/nbgrader_jupyterquiz`` folder (with the exception of ``src/nbgrader_jupyterquiz/__init__.py``) will trigger the ``bump-version.yml`` workflow. Be careful not to commit changes to files in this folder when preparing a new release.
 
-#. Create a new branch from `main` (e.g. `release-0.2.0`).
-#. Update the `CHANGELOG.rst` file to change the `Unreleased` section to the current date.
-#. Bump the version in your branch to the next version (e.g. `v0.1.0 -> v0.2.0`):
+#. Create a new branch from `main` (e.g. `release/v0.5.0`).
+#. **Uncomment the Unreleased section in CHANGELOG.rst**.  It is wrapped
+   in an RST comment (`..` prefix); remove the `..` and de-indent the
+   whole block.  ``bump release`` searches for the uncommented heading
+   and fails if it is still commented out.
+#. Bump the version in your branch to the next version (e.g. `v0.4.0 -> v0.5.0`):
 
     .. code-block:: console
 
-        bump-my-version bump minor # In most cases, we will be releasing a minor version
-        bump-my-version bump release # This will update the version strings to drop the `dev` suffix
+        bump-my-version bump minor                # produces X.Y.0-dev.0 (NOT stable)
+        bump-my-version bump release --allow-dirty  # drops the dev suffix → X.Y.0
         git push
 
 #. Create a pull request from your branch to `main`.
@@ -90,37 +93,3 @@ Subsequent releases
 ^^^^^^^^^^^^^^^^^^^
 
 If the conda-forge feedstock recipe is built from PyPI, then when a new release is published on PyPI, `regro-cf-autotick-bot` will open Pull Requests automatically on the conda-forge feedstock. It is up to the conda-forge feedstock maintainers to verify that the package is building properly before merging the Pull Request to the main branch.
-
-Building sources for wide support with `manylinux` image
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. warning::
-    This section is for building source files that link to or provide links to C/C++ dependencies.
-    It is not necessary to perform the following when building pure Python packages.
-
-In order to do ensure best compatibility across architectures, we suggest building wheels using the `PyPA`'s `manylinux` docker images (at time of writing, we endorse using `manylinux_2_24_x86_64`).
-
-With `docker` installed and running, begin by pulling the image:
-
-    .. code-block:: console
-
-        sudo docker pull quay.io/pypa/manylinux_2_24_x86_64
-
-From the nbgrader-jupyterquiz source folder we can enter into the docker container, providing access to the `src/nbgrader_jupyterquiz` source files by linking them to the running image:
-
-    .. code-block:: console
-
-        sudo docker run --rm -ti -v $(pwd):/src/nbgrader_jupyterquiz -w /src/nbgrader_jupyterquiz quay.io/pypa/manylinux_2_24_x86_64 bash
-
-Finally, to build the wheel, we run it against the provided Python3.9 binary:
-
-    .. code-block:: console
-
-        /opt/python/cp39-cp39m/bin/python -m build --sdist --wheel
-
-This will then place two files in `nbgrader-jupyterquiz/dist/` ("nbgrader_jupyterquiz-1.2.3-py3-none-any.whl" and "nbgrader-jupyterquiz-1.2.3.tar.gz").
-We can now leave our docker container (`exit`) and continue with uploading the files to PyPI:
-
-    .. code-block:: console
-
-        python -m twine upload dist/*

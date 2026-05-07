@@ -1,15 +1,21 @@
 """
 Interactive graded quizzes for Jupyter notebooks (nbgrader-jupyterquiz).
 
-Provides the :class:`~nbgrader_jupyterquiz.grader.CreateQuiz` nbgrader
-preprocessor and the :func:`~nbgrader_jupyterquiz.display.display_quiz`
-display function.
+Public API:
+
+- :class:`~nbgrader_jupyterquiz.grader.CreateQuiz` — nbgrader preprocessor
+  that converts Markdown quiz regions into interactive widgets at
+  ``generate_assignment`` time.
+- :func:`~nbgrader_jupyterquiz.display.display_quiz` — render an
+  interactive quiz inside a Jupyter notebook (also usable standalone).
+- :func:`~nbgrader_jupyterquiz.grader.autograde.grade_quiz` — autograder
+  helper invoked from the hidden-tests block of each graded cell.
 """
 
 ###################################################################################
 # MIT License
 #
-# Copyright (c) 2026, Philipp Emmo Tobias Risius
+# Copyright (c) 2025-2026, Philipp Emmo Tobias Risius
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +38,7 @@ display function.
 
 __author__ = "Philipp Emmo Tobias Risius"
 __email__ = "philipp.e.risius@theo.physik.uni-giessen.de"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from nbgrader_jupyterquiz.display import display_quiz
 from nbgrader_jupyterquiz.grader import CreateQuiz
