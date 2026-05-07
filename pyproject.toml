@@ -16,8 +16,9 @@ keywords = ["nbgrader", "jupyterquiz", "education"]
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
-  "Intended Audience :: Developers",
+  "Development Status :: 4 - Beta",
+  "Framework :: Jupyter",
+  "Intended Audience :: Education",
   "Natural Language :: English",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -28,7 +29,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Typing :: Typed"
+  "Topic :: Education :: Testing"
 ]
 dynamic = ["description", "version"]
 dependencies = [
@@ -71,8 +72,9 @@ docs = [
 all = ["nbgrader_jupyterquiz[dev]", "nbgrader_jupyterquiz[docs]"]
 
 [project.urls]
-# "Homepage" = "https://nbgrader-jupyterquiz.readthedocs.io/"
-# "Changelog" = "https://nbgrader-jupyterquiz.readthedocs.io/en/stable/changelog.html"
+"Homepage" = "https://nbgrader-jupyterquiz.readthedocs.io/"
+"Documentation" = "https://nbgrader-jupyterquiz.readthedocs.io/en/latest/"
+"Changelog" = "https://nbgrader-jupyterquiz.readthedocs.io/en/latest/changelog.html"
 "Issue tracker" = "https://github.com/PhilippRisius/nbgrader-jupyterquiz/issues"
 "Source" = "https://github.com/PhilippRisius/nbgrader-jupyterquiz"
 
