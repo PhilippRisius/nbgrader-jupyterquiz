@@ -38,7 +38,7 @@ Public API:
 
 __author__ = "Philipp Emmo Tobias Risius"
 __email__ = "philipp.e.risius@theo.physik.uni-giessen.de"
-__version__ = "0.5.0-dev.0"
+__version__ = "0.5.0"
 
 from nbgrader_jupyterquiz.display import display_quiz
 from nbgrader_jupyterquiz.grader import CreateQuiz
