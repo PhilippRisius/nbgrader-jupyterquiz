@@ -1,9 +1,15 @@
 """
 Interactive graded quizzes for Jupyter notebooks (nbgrader-jupyterquiz).
 
-Provides the :class:`~nbgrader_jupyterquiz.grader.CreateQuiz` nbgrader
-preprocessor and the :func:`~nbgrader_jupyterquiz.display.display_quiz`
-display function.
+Public API:
+
+- :class:`~nbgrader_jupyterquiz.grader.CreateQuiz` — nbgrader preprocessor
+  that converts Markdown quiz regions into interactive widgets at
+  ``generate_assignment`` time.
+- :func:`~nbgrader_jupyterquiz.display.display_quiz` — render an
+  interactive quiz inside a Jupyter notebook (also usable standalone).
+- :func:`~nbgrader_jupyterquiz.grader.autograde.grade_quiz` — autograder
+  helper invoked from the hidden-tests block of each graded cell.
 """
 
 ###################################################################################

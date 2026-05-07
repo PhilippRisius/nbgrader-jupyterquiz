@@ -2,99 +2,110 @@
 Changelog
 =========
 
-..
-    `Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
-    ------------------------------------------------------------------------------
+`Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
+------------------------------------------------------------------------------
 
-    Contributors:
+Contributors: Philipp Emmo Tobias Risius (:user:`PhilippRisius`)
 
-    Changes
-    ^^^^^^^
-    * Parser rework — paired delimiters (``(...)``, ``[...]``,
-      ``{...}``, ``<...>``) now balance their own pair, so
-      ``(Correct (with caveats))`` parses as one feedback field
-      with content ``Correct (with caveats)``.  Other delimiter
-      characters inside a paired field are inert: ``(feedback
-      { )`` parses cleanly.  Backslash escapes (``\(``, ``\)``,
-      ``\\``) handle deliberately unmatched same-pair
-      characters, so an emoticon like ``:(`` inside feedback
-      can be written as ``:\(``.  Same-character ``"..."``
-      fields accept ``\"`` for a literal ``"`` and ``\\`` for a
-      literal ``\``; other backslash sequences (``\int``,
-      ``\alpha``) pass through unchanged so LaTeX content
-      authors don't need to double their backslashes.
-      Multi-line content is supported in any field —
-      continuation lines must be indented strictly deeper than
-      the opener (matching markdown-list semantics).  Code
-      blocks (`` ```...``` ``) ignore the indentation rule and
-      tolerate any character until the closing triple-backtick,
-      so multi-line fenced code works without escaping.  An
-      unclosed field now raises a clearer ``ParseError`` naming
-      the missing delimiter (:pull:`26`).
-    * Documentation reorganised along Diataxis: the toctree now
-      groups pages under *Get started*, *Tutorial*, *How-to*,
-      *Worked examples*, *Reference*, *Explanation*, and *Project*
-      captions.  The ad-hoc ``usage`` landing page is removed; the
-      example downloads moved to a proper :doc:`examples/index`.
-    * New :doc:`tutorial` page walks through install → quiz authoring →
-      release → submit → autograde end-to-end in about ten minutes.
-    * New :doc:`how-to/index` section with three focused recipes:
-      displaying a quiz without nbgrader, writing a numeric range
-      question, and mixing graded with manually-graded content in
-      one task cell.
-    * :doc:`graded-quizzes` "Where the answer key lives" section
-      gains a *Threat model* subsection spelling out what the
-      redaction protects against (DOM inspection, source reading,
-      base64 reverse-engineering) and what it doesn't (per-answer
-      feedback strings as a leaky channel, stand-alone
-      ``display_quiz``).
-    * :doc:`nbgrader-pipeline` "Collecting and grading" section
-      replaced — it described the pre-v0.4.0 self-checking-only
-      world.  It now describes the actual sidecar + autograde flow.
-    * New worked example ``nb3-physics-rich-content.ipynb`` (in the
-      :doc:`examples/index` page) combines every feature in one
-      annotated notebook: MathJax in question and answer labels,
-      numeric value and range matching with precision, a code-block
-      question, per-question points (including fractional weights),
-      and a self-check warm-up inside a graded task (:pull:`24`).
+Developed with assistance from Claude (Anthropic) — see commit trailers
+for per-commit attribution.
 
-    Fixes
-    ^^^^^
-    * The instructor-declared question type (``SC`` / ``MC``) is now
-      authoritative at both parse time and render time.  Previously the
-      display silently switched a ``SC`` question with two ``+`` answers
-      to many-choice semantics (and vice-versa for ``MC`` with one ``+``),
-      producing responses the grader would then score as 0 because of
-      the ``type`` mismatch.  ``SC`` with anything other than exactly one
-      correct answer is now a hard ``ParseError``; ``MC`` with 0 or 1
-      correct answers is allowed but logs a warning.  Both warnings and
-      errors are now routed through ``CreateQuiz.log`` so they appear in
-      ``nbgrader``'s UI output with the offending cell's ``grade_id``.
-    * ``hide_correctness=true`` (auto-on for graded quizzes) now strips
-      the answer key from the display JSON embedded into the release
-      notebook.  Previously, the full ``correct`` flags on
-      multiple-choice answers and the ``value`` / ``range`` matchers
-      on numeric answers shipped to the student's browser; only the
-      visual feedback was hidden.  The autograder receives its copy
-      from a separate hidden-tests block (stripped by
-      ``ClearHiddenTests``, restored by ``OverwriteCells``), so this
-      change does not affect grading.  Per-answer ``feedback`` strings
-      are intentionally preserved.  Self-check quizzes
-      (``hide_correctness=false``) still ship the full key, since the
-      JS needs it to colour buttons (:pull:`22`).
-    * Deselected MC/many-choice answer buttons keep their dark text
-      colour instead of inheriting the surrounding container's light
-      text — previously invisible on dark JupyterHub themes after a
-      select-then-deselect.  A new ``--jq-mc-button-text`` palette
-      variable drives both the default and deselected states
-      (:pull:`23`).
-    * MathJax expressions (``$...$``) in question and feedback
-      strings render correctly with ``encoded=false`` quizzes.
-      Previously MathJax rewrote the embedded JSON in place,
-      breaking ``JSON.parse``; the hidden span now carries
-      ``tex2jax_ignore`` / ``mathjax_ignore`` classes so MathJax
-      skips it.  Default ``encoded=true`` quizzes were not affected
-      (:pull:`23`).
+.. note::
+
+    Compatibility: a v0.5.0 release notebook embeds a redacted
+    answer key (no ``correct`` flags) that v0.4.0's display JS does
+    not tolerate.  Students rendering a v0.5.0-generated assignment
+    must install nbgrader-jupyterquiz ≥ v0.5.0.  Instructors can
+    still autograde older releases with v0.5.0 — the autograder
+    side is unaffected.
+
+Changes
+^^^^^^^
+* **Parser rework** — paired delimiters (``(...)``, ``[...]``,
+  ``{...}``, ``<...>``) balance their own pair, so
+  ``(Correct (with caveats))`` parses as one feedback field with
+  content ``Correct (with caveats)``.  Other delimiter characters
+  inside a paired field are inert: ``(feedback { )`` parses
+  cleanly.  Backslash escapes (``\(``, ``\)``, ``\\``) handle
+  deliberately unmatched same-pair characters, so an emoticon
+  like ``:(`` inside feedback can be written as ``:\(`` (:pull:`26`).
+* **Same-character delimiters** (``"..."``) accept ``\"`` for a
+  literal ``"`` and ``\\`` for a literal ``\``; other backslash
+  sequences (``\int``, ``\alpha``, etc.) pass through unchanged
+  so LaTeX content authors don't need to double their
+  backslashes (:pull:`26`).
+* **Multi-line content** is supported in any field — continuation
+  lines must be indented strictly deeper than the opener (matching
+  markdown-list semantics).  Code blocks (`` ```...``` ``) ignore
+  the indentation rule and tolerate any character until the
+  closing triple-backtick, so multi-line fenced code works without
+  escaping.  An unclosed field raises a clearer ``ParseError``
+  naming the missing delimiter (:pull:`26`).
+* Documentation reorganised along Diataxis: the toctree groups
+  pages under *Get started*, *Tutorial*, *How-to*, *Worked
+  examples*, *Reference*, *Explanation*, and *Project* captions.
+  The ad-hoc ``usage`` landing page is removed; the example
+  downloads moved to a proper :doc:`examples/index`.
+* New :doc:`tutorial` page walks through install → quiz authoring
+  → release → submit → autograde end-to-end in about ten minutes.
+* New :doc:`how-to/index` section with three focused recipes:
+  displaying a quiz without nbgrader, writing a numeric range
+  question, and mixing graded with manually-graded content in
+  one task cell.
+* :doc:`graded-quizzes` "Where the answer key lives" section
+  gains a *Threat model* subsection spelling out what the
+  redaction protects against (DOM inspection, source reading,
+  base64 reverse-engineering) and what it doesn't (per-answer
+  feedback strings as a leaky channel, stand-alone
+  ``display_quiz``).
+* :doc:`nbgrader-pipeline` "Collecting and grading" section
+  replaced — it described the pre-v0.4.0 self-checking-only
+  world.  It now describes the actual sidecar + autograde flow.
+* New worked example ``nb3-physics-rich-content.ipynb`` (in the
+  :doc:`examples/index` page) combines every feature in one
+  annotated notebook: MathJax in question and answer labels,
+  numeric value and range matching with precision, a code-block
+  question, per-question points (including fractional weights),
+  and a self-check warm-up inside a graded task (:pull:`24`).
+
+Fixes
+^^^^^
+* The instructor-declared question type (``SC`` / ``MC``) is now
+  authoritative at both parse time and render time.  Previously the
+  display silently switched a ``SC`` question with two ``+`` answers
+  to many-choice semantics (and vice-versa for ``MC`` with one ``+``),
+  producing responses the grader would then score as 0 because of
+  the ``type`` mismatch.  ``SC`` with anything other than exactly one
+  correct answer is now a hard ``ParseError``; ``MC`` with 0 or 1
+  correct answers is allowed but logs a warning.  Both warnings and
+  errors are now routed through ``CreateQuiz.log`` so they appear in
+  ``nbgrader``'s UI output with the offending cell's ``grade_id``
+  (:pull:`21`).
+* ``hide_correctness=true`` (auto-on for graded quizzes) now strips
+  the answer key from the display JSON embedded into the release
+  notebook.  Previously, the full ``correct`` flags on
+  multiple-choice answers and the ``value`` / ``range`` matchers
+  on numeric answers shipped to the student's browser; only the
+  visual feedback was hidden.  The autograder receives its copy
+  from a separate hidden-tests block (stripped by
+  ``ClearHiddenTests``, restored by ``OverwriteCells``), so this
+  change does not affect grading.  Per-answer ``feedback`` strings
+  are intentionally preserved.  Self-check quizzes
+  (``hide_correctness=false``) still ship the full key, since the
+  JS needs it to colour buttons (:pull:`22`).
+* Deselected MC/many-choice answer buttons keep their dark text
+  colour instead of inheriting the surrounding container's light
+  text — previously invisible on dark JupyterHub themes after a
+  select-then-deselect.  A new ``--jq-mc-button-text`` palette
+  variable drives both the default and deselected states
+  (:pull:`23`).
+* MathJax expressions (``$...$``) in question and feedback
+  strings render correctly with ``encoded=false`` quizzes.
+  Previously MathJax rewrote the embedded JSON in place,
+  breaking ``JSON.parse``; the hidden span now carries
+  ``tex2jax_ignore`` / ``mathjax_ignore`` classes so MathJax
+  skips it.  Default ``encoded=true`` quizzes were not affected
+  (:pull:`23`).
 
 .. _changes_0.4.0:
 
