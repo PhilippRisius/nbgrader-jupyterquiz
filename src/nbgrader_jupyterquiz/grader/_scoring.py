@@ -41,7 +41,7 @@ def grade_multiple_choice(question: dict[str, Any], recorded: dict[str, Any]) ->
     """
     if recorded.get("type") != "multiple_choice":
         return False
-    idx = resolve_choice(question, recorded.get("selected"))
+    idx = resolve_choice(question, recorded.get("selected"), recorded.get("selected_index"))
     return idx is not None and bool(question["answers"][idx].get("correct"))
 
 
@@ -67,7 +67,7 @@ def grade_many_choice(question: dict[str, Any], recorded: dict[str, Any]) -> boo
     selected = recorded.get("selected")
     if not isinstance(selected, list):
         return False
-    picked = [resolve_choice(question, s) for s in selected]
+    picked = [resolve_choice(question, s, i) for s, i in zip(selected, _indices(recorded, len(selected)), strict=True)]
     if any(idx is None for idx in picked):
         return False
     correct = {i for i, a in enumerate(question.get("answers", [])) if a.get("correct")}
@@ -95,46 +95,81 @@ def picked_choices(question: dict[str, Any], recorded: Any) -> set[int]:
         return set()
     selected = recorded.get("selected")
     entries = selected if isinstance(selected, list) else [selected]
-    return {idx for idx in (resolve_choice(question, s) for s in entries) if idx is not None}
+    picked = (resolve_choice(question, s, i) for s, i in zip(entries, _indices(recorded, len(entries)), strict=True))
+    return {idx for idx in picked if idx is not None}
 
 
-def resolve_choice(question: dict[str, Any], selected: Any) -> int | None:
+def _indices(recorded: dict[str, Any], count: int) -> list[Any]:
+    """
+    Return the recorded answer indices aligned with the ``selected`` entries.
+
+    Parameters
+    ----------
+    recorded : dict
+        Recorded choice payload.
+    count : int
+        Number of ``selected`` entries.
+
+    Returns
+    -------
+    list
+        ``selected_index`` (single choice) or ``selected_indices``
+        (many choice) as a list of length ``count``, padded with
+        ``None`` when absent or malformed (sidecars written by
+        nbgrader-jupyterquiz <= 0.5.0 carry no indices).
+    """
+    raw = recorded.get("selected_indices", [recorded.get("selected_index")])
+    if not isinstance(raw, list) or len(raw) != count:
+        return [None] * count
+    return raw
+
+
+def resolve_choice(question: dict[str, Any], selected: Any, index: Any = None) -> int | None:
     r"""
-    Map a recorded choice string to the index of the answer it denotes.
+    Map a recorded choice to the index of the answer it denotes.
 
-    The display JS records each answer's source text.  Responses
-    recorded by nbgrader-jupyterquiz <= 0.5.0 instead carry the
-    button's *rendered* text, which differs from the source when the
-    answer contains ``$...$`` math (rewritten to ``\(...\)``),
-    markdown links, spans multiple lines (whitespace collapsed), or
-    carries a code block (its text is appended).  An exact match is
-    tried first; failing that, the selection is compared against a
-    reconstruction of each answer's rendered text.
+    The display JS records each answer's source text and its position
+    in the source answer list.  The position is used when it agrees
+    with the text; it disambiguates answers whose text is identical
+    (e.g. code-only answers written as ``"" ```code``` ``).
+
+    Responses recorded by nbgrader-jupyterquiz <= 0.5.0 carry no
+    position and the button's *rendered* text, which differs from the
+    source when the answer contains ``$...$`` math (rewritten to
+    ``\(...\)``), markdown links, spans multiple lines (whitespace
+    collapsed), or carries a code block (its text is appended).  For
+    those, an exact source match is tried first; failing that, the
+    selection is compared against a reconstruction of each answer's
+    rendered text.  A selection matching more than one answer is
+    ambiguous and resolves to ``None``.
 
     Parameters
     ----------
     question : dict
         Single- or many-choice question dict.
     selected : Any
-        One recorded selection.
+        One recorded selection text.
+    index : Any, optional
+        Recorded position of the selection in the source answer list.
 
     Returns
     -------
     int or None
         Index into ``question["answers"]``, or ``None`` when
-        ``selected`` is not a string or matches no answer.
+        ``selected`` is not a string or does not identify exactly one
+        answer.
     """
     if not isinstance(selected, str):
         return None
     answers = question.get("answers", [])
-    for i, a in enumerate(answers):
-        if a.get("answer") == selected:
-            return i
+    if isinstance(index, int) and not isinstance(index, bool) and 0 <= index < len(answers) and answers[index].get("answer") == selected:
+        return index
+    exact = [i for i, a in enumerate(answers) if a.get("answer") == selected]
+    if exact:
+        return exact[0] if len(exact) == 1 else None
     target = _collapse_whitespace(selected)
-    for i, a in enumerate(answers):
-        if target in _rendered_forms(a):
-            return i
-    return None
+    rendered = [i for i, a in enumerate(answers) if target in _rendered_forms(a)]
+    return rendered[0] if len(rendered) == 1 else None
 
 
 def _rendered_forms(answer: dict[str, Any]) -> set[str]:
@@ -154,7 +189,7 @@ def _rendered_forms(answer: dict[str, Any]) -> set[str]:
     """
     text = str(answer.get("answer", ""))
     code = answer.get("code")
-    forms = set()
+    forms: set[str] = set()
     for base in (text, _jaxify(text)):
         forms.add(_collapse_whitespace(base))
         if code:
@@ -187,17 +222,37 @@ def _jaxify(text: str) -> str:
     n_inline = n_display = 0
     while True:
         if _DISPLAY_MATH.search(text):
-            delim = "\\]" if n_display % 2 else "\\["
-            text = _DISPLAY_MATH.sub(lambda m, d=delim: m.group(1) + d, text, count=1)
+            text = _sub_first(_DISPLAY_MATH, text, "\\]" if n_display % 2 else "\\[")
             n_display += 1
         elif _INLINE_MATH.search(text):
-            delim = "\\)" if n_inline % 2 else "\\("
-            text = _INLINE_MATH.sub(lambda m, d=delim: m.group(1) + d, text, count=1)
+            text = _sub_first(_INLINE_MATH, text, "\\)" if n_inline % 2 else "\\(")
             n_inline += 1
         else:
             break
     text = _AUTOLINK.sub(r"http\1", text)
     return _MD_LINK.sub(r"\1", text)
+
+
+def _sub_first(pattern: re.Pattern[str], text: str, delim: str) -> str:
+    r"""
+    Replace the first ``$`` / ``$$`` delimiter matched by ``pattern`` with ``delim``.
+
+    Parameters
+    ----------
+    pattern : re.Pattern
+        ``_DISPLAY_MATH`` or ``_INLINE_MATH``; group 1 is the character
+        preceding the delimiter (kept).
+    text : str
+        Text to rewrite.
+    delim : str
+        Replacement, e.g. ``\(``.
+
+    Returns
+    -------
+    str
+        ``text`` with its first match replaced.
+    """
+    return pattern.sub(lambda m: m.group(1) + delim, text, count=1)
 
 
 def _collapse_whitespace(text: str) -> str:
@@ -240,26 +295,58 @@ def grade_numeric(question: dict[str, Any], recorded: dict[str, Any]) -> bool:
     """
     if recorded.get("type") != "numeric":
         return False
-    parsed = recorded.get("parsed")
-    if isinstance(parsed, bool) or not isinstance(parsed, (int, float)) or not math.isfinite(parsed):
+    parsed = _as_number(recorded.get("parsed"))
+    if parsed is None:
         return False
 
-    precision = question.get("precision")
-    rounded = isinstance(precision, int) and not isinstance(precision, bool) and precision > 0
-    if rounded:
+    # JS reads ``data-precision`` as a number and ``toPrecision``
+    # truncates it, so a hand-written ``3.0`` behaves like ``3``.
+    raw_precision = _as_number(question.get("precision"))
+    precision = int(raw_precision) if raw_precision is not None and raw_precision >= 1 else 0
+    if precision:
         parsed = _round_to_precision(parsed, precision)
     for a in question.get("answers", []):
         if "value" in a:
-            expected = float(a["value"])
-            match = parsed == (_round_to_precision(expected, precision) if rounded else expected)
+            expected = _as_number(a["value"])
+            if expected is None:
+                continue
+            match = parsed == (_round_to_precision(expected, precision) if precision else expected)
         elif "range" in a:
-            lo, hi = a["range"]
+            bounds = a["range"] if isinstance(a["range"], (list, tuple)) and len(a["range"]) == 2 else (None, None)
+            lo, hi = (_as_number(b) for b in bounds)
+            if lo is None or hi is None:
+                continue
             match = lo <= parsed <= hi
         else:
             continue  # ``default`` catch-all: feedback only
         if match:
             return bool(a.get("correct"))
     return False
+
+
+def _as_number(value: Any) -> float | None:
+    """
+    Coerce a JSON number to a finite float.
+
+    Parameters
+    ----------
+    value : Any
+        Candidate number from the answer key or the sidecar.
+
+    Returns
+    -------
+    float or None
+        The value as a finite ``float``; ``None`` for booleans,
+        non-numbers, NaN, infinities, and integers too large for a
+        float.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except OverflowError:
+        return None
+    return number if math.isfinite(number) else None
 
 
 def grade_string(question: dict[str, Any], recorded: dict[str, Any]) -> bool:
@@ -360,7 +447,9 @@ def _round_to_precision(x: float, precision: int) -> float:
     float
         Rounded value.
     """
-    if x == 0 or not math.isfinite(x):
+    if x == 0 or not math.isfinite(x) or precision >= 17:
+        # 17 significant digits identify every double uniquely, so
+        # ``Number(x.toPrecision(p))`` is ``x`` itself for p >= 17.
         return float(x)
     exact = Decimal(x)
     quantum = Decimal(1).scaleb(exact.adjusted() - precision + 1)

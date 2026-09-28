@@ -648,15 +648,25 @@ def _validate_quiz_options(options: dict[str, Any]) -> None:
         ``inline=false`` without ``filename``, or a ``filename`` that
         is absolute or leaves the notebook's directory (the file is
         written next to the release notebook and loaded relative to
-        the student's copy).
+        the student's copy), names a directory, starts with ``#``
+        (``display_quiz`` would read it as a DOM id), or would clobber
+        a notebook or the ``responses.json`` sidecar.
     """
     filename = options.get("filename")
     if not options.get("inline") and not filename:
         raise ParseError("Quiz option inline=false requires filename=...; otherwise the quiz data is not embedded anywhere.")
-    if filename:
-        paths = (pathlib.PurePosixPath(filename), pathlib.PureWindowsPath(filename))
-        if any(p.is_absolute() or p.anchor or ".." in p.parts for p in paths):
-            raise ParseError(f"Quiz option filename={filename!r} must be a relative path inside the notebook's directory.")
+    if not filename:
+        return
+    paths = (pathlib.PurePosixPath(filename), pathlib.PureWindowsPath(filename))
+    if any(p.is_absolute() or p.anchor or ".." in p.parts for p in paths):
+        raise ParseError(f"Quiz option filename={filename!r} must be a relative path inside the notebook's directory.")
+    name = paths[1].name  # Windows parsing splits on both separators
+    if filename.endswith(("/", "\\")) or name in ("", "."):
+        raise ParseError(f"Quiz option filename={filename!r} must name a file, not a directory.")
+    if filename.startswith("#"):
+        raise ParseError(f"Quiz option filename={filename!r} must not start with '#'.")
+    if name.lower().endswith(".ipynb") or paths[1].as_posix().lower() == "responses.json":
+        raise ParseError(f"Quiz option filename={filename!r} would overwrite a notebook or the responses.json sidecar.")
 
 
 def parse_question(lines: list[str]) -> dict[str, Any]:

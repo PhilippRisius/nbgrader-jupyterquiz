@@ -67,8 +67,11 @@ and boolean options with any other value, are ignored with a warning in the
        writes the file next to the release notebook, and the generated
        ``display_quiz`` call loads it from the student's copy of the
        assignment.  The path must be relative and stay inside the
-       notebook's directory, and each file may hold only one quiz.
-       Overrides ``inline``, ``hidden`` and ``encoded``.
+       notebook's directory, and each file may hold only one quiz per
+       assignment.  Overrides ``inline``, ``hidden`` and ``encoded``.
+       The file must travel with the notebook; if it is missing (e.g. a
+       submission that contains only the ``.ipynb``), the quiz shows a
+       notice instead of the widget, and grading is unaffected.
 
 Example — question data in a separate file::
 
@@ -223,9 +226,12 @@ answer is listed first:
 .. code-block:: markdown
 
     * (NM) "What is $\pi$ to two decimal places?"
-      - <3>             (Too coarse — two decimal places, please.)
+      - <3.14159>       (Two decimal places, please.)
       + [3.135, 3.145]
       - (Not quite.)
+
+Here ``3.14159`` lies inside the correct range, but the wrong answer
+listed above it matches first.
 
 Examples
 --------

@@ -306,6 +306,34 @@ def test_filename_reused_in_one_notebook_raises(resources):
         CreateQuiz().preprocess(nb, resources)
 
 
+def test_filename_shared_by_two_notebooks_of_an_assignment_raises():
+    """Both notebooks write into the same release directory."""
+    source = '#### Quiz filename=quiz.json\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    pp = CreateQuiz()
+    pp.preprocess(make_notebook(task_cell(source)), {"unique_key": "nbA", "nbgrader": {"assignment": "ps1"}})
+    # Re-running the same notebook is fine; another assignment is fine.
+    pp.preprocess(make_notebook(task_cell(source)), {"unique_key": "nbA", "nbgrader": {"assignment": "ps1"}})
+    pp.preprocess(make_notebook(task_cell(source)), {"unique_key": "nbB", "nbgrader": {"assignment": "ps2"}})
+    with pytest.raises(RuntimeError, match="already written by notebook 'nbA'"):
+        pp.preprocess(make_notebook(task_cell(source)), {"unique_key": "nbB", "nbgrader": {"assignment": "ps1"}})
+
+
+@pytest.mark.parametrize(
+    "filename,match",
+    [
+        ("sub/", "not a directory"),
+        (".", "not a directory"),
+        ("#quiz.json", "must not start with '#'"),
+        ("other.ipynb", "overwrite a notebook"),
+        ("responses.json", "overwrite a notebook or the responses.json"),
+    ],
+)
+def test_filename_unusable_names_raise(resources, filename, match):
+    source = f'#### Quiz filename={filename}\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    with pytest.raises(ParseError, match=match):
+        CreateQuiz().preprocess(make_notebook(task_cell(source)), resources)
+
+
 @pytest.mark.parametrize("filename", ["/abs/quiz.json", "../quiz.json", "sub/../../quiz.json", "..\\quiz.json", "C:\\quiz.json"])
 def test_filename_outside_notebook_dir_raises(resources, filename):
     source = f'#### Quiz filename={filename}\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'

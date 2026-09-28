@@ -123,7 +123,7 @@ def test_split_questions_empty():
 def test_split_questions_reports_ignored_lines():
     """Dropped lines are reported so typos like ``*(SC)`` don't vanish silently."""
     lines = ['* (SC) "Q?"', '  + "A"', '*(SC) "Typo?"', '+ "Unindented"', ""]
-    warnings = []
+    warnings: list[str] = []
     result = split_questions(lines, warnings)
     assert result == [['* (SC) "Q?"', '  + "A"']]
     assert len(warnings) == 2
@@ -583,7 +583,7 @@ def test_parse_quiz_options_reports_ignored_tokens():
     """Typos in option names or values must not be silently dropped."""
     from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
 
-    warnings = []
+    warnings: list[str] = []
     result = parse_quiz_options("hide_corectness=true graded=no encoded=FALSE", warnings)
     assert result["hide_correctness"] is None
     assert result["graded"] is None
@@ -594,8 +594,8 @@ def test_parse_quiz_options_reports_ignored_tokens():
 
 
 def test_parse_cell_surfaces_option_warnings():
-    quizzes, _ = parse_cell('#### Quiz hiden=true\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz')
-    assert any("hiden=true" in w for w in quizzes[0].warnings)
+    quizzes, _ = parse_cell('#### Quiz hide=true\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz')
+    assert any("hide=true" in w for w in quizzes[0].warnings)
 
 
 def test_parse_quiz_options_token_without_equals_ignored():

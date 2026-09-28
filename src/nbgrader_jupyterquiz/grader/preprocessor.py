@@ -84,6 +84,10 @@ class CreateQuiz(NbGraderPreprocessor):
     # (all reset per notebook in preprocess).
     name = ""
     quiz_cell_counter = itertools.count()
+    # ``filename=`` files claimed so far, keyed by (assignment, path) and
+    # mapped to the claiming notebook.  Notebooks of one assignment share
+    # a release directory, so two of them must not write the same file.
+    _claimed_files: dict[tuple[str, str], str] | None = None
 
     def preprocess(self, nb: NotebookNode, resources: ResourcesDict) -> tuple[NotebookNode, ResourcesDict]:
         """
@@ -111,6 +115,12 @@ class CreateQuiz(NbGraderPreprocessor):
         self.name = resources["unique_key"]
         self.quiz_cell_counter = itertools.count()
         self._filenames: set[str] = set()
+        self._assignment = str((resources.get("nbgrader") or {}).get("assignment", ""))
+        if self._claimed_files is None:
+            self._claimed_files = {}
+        # Re-processing a notebook (e.g. ``--force``) releases its old claims.
+        for key in [k for k, owner in self._claimed_files.items() if owner == self.name]:
+            del self._claimed_files[key]
         new_cells: list[NotebookNode] = []
 
         for cell in nb["cells"]:
@@ -327,6 +337,10 @@ class CreateQuiz(NbGraderPreprocessor):
             # so it must be plain JSON: ``encoded`` does not apply.
             if filename in self._filenames:
                 raise RuntimeError(f"Quiz data file {filename!r} is used by more than one quiz in notebook {self.name!r}.")
+            key = (self._assignment, filename)
+            owner = self._claimed_files.setdefault(key, self.name)
+            if owner != self.name:
+                raise RuntimeError(f"Quiz data file {filename!r} of notebook {self.name!r} is already written by notebook {owner!r}.")
             self._filenames.add(filename)
             resources.setdefault("outputs", {})[filename] = questions_json.encode("utf-8")
             return filename

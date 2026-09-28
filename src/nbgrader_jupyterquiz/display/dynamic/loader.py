@@ -54,12 +54,15 @@ def load_questions_script(ref, div_id):
                 f"element = elems[0]; }}\n"
                 f'if (element == null) {{ throw new Error("Cannot find element " + {element_id}); }}\n'
                 f"var questions{div_id};\n"
-                f"try {{ questions{div_id} = JSON.parse(window.atob(element.innerHTML)); }} "
-                f'catch(err) {{ console.log("Parsing error, using raw innerHTML"); '
-                f"questions{div_id} = JSON.parse(element.innerHTML); }}\n"
+                # textContent, not innerHTML: the markdown renderer
+                # serialises ``<`` / ``&`` inside the (unencoded) JSON as
+                # ``&lt;`` / ``&amp;``, which would end up in the strings.
+                f"try {{ questions{div_id} = JSON.parse(window.atob(element.textContent)); }} "
+                f'catch(err) {{ console.log("Parsing error, using raw textContent"); '
+                f"questions{div_id} = JSON.parse(element.textContent); }}\n"
                 f"console.log(questions{div_id});"
             )
-        elif ref.lower().startswith("http"):
+        elif ref.lower().startswith(("http://", "https://")):
             script = f"var questions{div_id}="
             url = ref
             if sys.platform == "emscripten" and open_url:

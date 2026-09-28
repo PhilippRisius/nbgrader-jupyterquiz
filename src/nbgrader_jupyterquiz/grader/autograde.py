@@ -321,7 +321,7 @@ def _load_sidecar_responses(grade_id: str) -> dict[str, Any] | None:
     if not sidecar.exists():
         return None
     try:
-        data = json.loads(sidecar.read_text())
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
         raise GradeQuizError(f"Cannot read {sidecar}: {exc}") from exc
     if not isinstance(data, dict):

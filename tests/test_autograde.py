@@ -146,6 +146,37 @@ class TestGradeMultipleChoice:
         selected = "It squares its argument.\ndef f(x):\n    return x ** 2"
         assert grade_multiple_choice(q, {"type": "multiple_choice", "selected": selected})
 
+    def test_code_only_answers_resolved_by_recorded_index(self):
+        """Code-only answers all have text ""; the recorded position tells them apart."""
+        q = {
+            "type": "multiple_choice",
+            "question": "Which prints 3?",
+            "answers": [
+                {"correct": False, "answer": "", "code": "print(1 + 3)"},
+                {"correct": True, "answer": "", "code": "print(1 + 2)"},
+            ],
+        }
+        assert grade_multiple_choice(q, {"type": "multiple_choice", "selected": "", "selected_index": 1})
+        assert not grade_multiple_choice(q, {"type": "multiple_choice", "selected": "", "selected_index": 0})
+        # Without a position the text is ambiguous: no credit either way.
+        assert not grade_multiple_choice(q, {"type": "multiple_choice", "selected": ""})
+
+    def test_index_disagreeing_with_text_falls_back_to_text(self):
+        """A key whose answer order differs from the display still grades by text."""
+        assert grade_multiple_choice(q_sc(), {"type": "multiple_choice", "selected": "Paris", "selected_index": 2})
+        assert not grade_multiple_choice(q_sc(), {"type": "multiple_choice", "selected": "Madrid", "selected_index": 0})
+
+    def test_legacy_rendered_selection_matching_two_answers_is_ambiguous(self):
+        q = {
+            "type": "multiple_choice",
+            "question": "?",
+            "answers": [
+                {"correct": True, "answer": "foo bar"},
+                {"correct": False, "answer": "foo", "code": "bar"},
+            ],
+        }
+        assert not grade_multiple_choice(q, {"type": "multiple_choice", "selected": "foo\nbar"})
+
     def test_legacy_rendered_wrong_selection_still_wrong(self):
         q = q_sc(answer="$x$")
         q["answers"][1]["answer"] = "$y$"
@@ -173,6 +204,21 @@ class TestGradeManyChoice:
         """A hand-edited sidecar must not crash the grader."""
         assert not grade_many_choice(q_mc(), {"type": "many_choice", "selected": ["list", "dict", {"x": 1}]})
         assert not grade_many_choice(q_mc(), {"type": "many_choice", "selected": ["list", "dict", "tuple"]})
+
+    def test_selected_indices_disambiguate_identical_texts(self):
+        q = {
+            "type": "many_choice",
+            "question": "Which print an even number?",
+            "answers": [
+                {"correct": True, "answer": "", "code": "print(2)"},
+                {"correct": False, "answer": "", "code": "print(3)"},
+                {"correct": True, "answer": "", "code": "print(4)"},
+            ],
+        }
+        rec = {"type": "many_choice", "selected": ["", ""], "selected_indices": [0, 2]}
+        assert grade_many_choice(q, rec)
+        assert not grade_many_choice(q, {**rec, "selected_indices": [0, 1]})
+        assert not grade_many_choice(q, {**rec, "selected_indices": [0]})  # misaligned: ignored
 
     def test_legacy_rendered_selection(self):
         q = q_mc()
@@ -251,6 +297,29 @@ class TestGradeNumeric:
         q = q_nm_value(2.5, precision=1)
         assert grade_numeric(q, {"type": "numeric", "parsed": 3})
         assert not grade_numeric(q, {"type": "numeric", "parsed": 2})
+
+    def test_high_precision_does_not_crash(self):
+        """[29]..[100] used to exceed Decimal's default 28-digit context."""
+        assert grade_numeric(q_nm_value(0.1, precision=30), {"type": "numeric", "parsed": 0.1})
+
+    def test_float_precision_rounds_like_js(self):
+        assert grade_numeric(q_nm_value(3.14, precision=3.0), {"type": "numeric", "parsed": 3.14159})
+
+    def test_malformed_hand_written_answers_are_skipped(self):
+        q = {
+            "type": "numeric",
+            "question": "?",
+            "answers": [
+                {"correct": False, "value": None},
+                {"correct": False, "range": None},
+                {"correct": False, "range": ["a", "b"]},
+                {"correct": True, "value": 4},
+            ],
+        }
+        assert grade_numeric(q, {"type": "numeric", "parsed": 4})
+
+    def test_huge_integer_parsed_returns_false(self):
+        assert not grade_numeric(q_nm_value(1.0), {"type": "numeric", "parsed": 10**400})
 
     def test_precision_applies_to_range_comparison(self):
         """numeric.js rounds the submission before range checks too."""
@@ -346,6 +415,10 @@ class TestRoundToPrecision:
     )
     def test_ties_match_js(self, x, precision, expected):
         assert _round_to_precision(x, precision) == expected
+
+    @pytest.mark.parametrize("precision", [17, 29, 100])
+    def test_high_precision_is_identity(self, precision):
+        assert _round_to_precision(0.1, precision) == 0.1
 
     @pytest.mark.parametrize("x", [float("inf"), float("-inf")])
     def test_non_finite_passthrough(self, x):
