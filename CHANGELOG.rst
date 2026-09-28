@@ -8,7 +8,7 @@ Changelog
 Contributors: Philipp Emmo Tobias Risius (:user:`PhilippRisius`)
 
 Developed with assistance from Claude (Anthropic) — see commit trailers
-for per-commit attribution.
+for per-commit attribution.  All entries below: :pull:`35`.
 
 Changes
 ^^^^^^^
