@@ -42,8 +42,11 @@ Fixes
   a code block were graded wrong.**  The recorder stored the button's
   rendered text (``$x$`` → ``\(x\)``, collapsed whitespace, code text
   appended) instead of the answer source.  The JS now records the
-  source text, and the autograder also recognises the rendered form,
-  so sidecars written by v0.5.0 grade correctly.
+  source text and the answer's position (which also tells apart
+  code-only answers), and the autograder also recognises the rendered
+  form, so sidecars written by v0.5.0 grade correctly.
+* With ``encoded=false``, ``<``, ``>`` and ``&`` in answers reached the
+  browser as HTML entities.
 * Concurrent sidecar saves overwrote each other, losing answers given
   in quick succession; saves are now serialised.
 * A blank numeric submission was recorded as ``0`` (and shown as
@@ -59,6 +62,9 @@ Fixes
 * ``filename=`` did not work: the file landed in the course root instead
   of the release directory, base64-encoded by default, and the generated
   ``display_quiz`` call pointed at a non-existent ``<file>:<tag>`` path.
+  Two notebooks of one assignment may not share a data file, and a data
+  file missing from a submission no longer zeroes the quiz's score.
+* Precision markers above ``[28]`` crashed the autograder.
 * ``hidden=false`` emitted data ``display_quiz`` could not locate.
 * A code cell containing a ``#### Quiz`` comment aborted
   ``generate_assignment``.
@@ -69,9 +75,18 @@ Fixes
 * Hand-edited or corrupt ``responses.json`` files raise
   ``GradeQuizError`` or grade as unanswered instead of crashing with
   ``AttributeError`` / ``TypeError``.
+* The wheel now ships the upstream jupyterquiz MIT licence
+  (``LICENSES/jupyterquiz-MIT.txt``) alongside the package licence.
 * CI lint failed under ruff ≥ 0.16 (preview rule
-  ``property-docstring-starts-with-verb``), and ``make lint`` only ran
-  numpydoc on ``__init__.py``.
+  ``property-docstring-starts-with-verb``); the tox lint env now pins
+  ruff to the pre-commit version.  ``make lint`` only ran numpydoc on
+  ``__init__.py``, and ``make release`` passed arguments ``flit
+  publish`` does not accept.
+* Workflows: the draft-release job could not reach the GitHub API
+  through its egress block list; publish jobs keep ``contents: read``
+  and allow the correct Sigstore hosts; CodeQL also scans the bundled
+  JavaScript and the workflows; dependabot groups pip updates as
+  intended.
 
 .. _changes_0.5.0:
 
