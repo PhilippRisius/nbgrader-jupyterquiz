@@ -56,7 +56,7 @@ clean-test: ## remove test and coverage artifacts
 
 lint: ## check style
 	python -m ruff check src/nbgrader_jupyterquiz tests
-	python -m numpydoc lint src/nbgrader_jupyterquiz/**.py
+	python -m numpydoc lint $(shell find src/nbgrader_jupyterquiz -name "*.py")
 
 test: ## run tests quickly with the default Python
 	python -m pytest
