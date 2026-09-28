@@ -17,9 +17,7 @@ updates:
     schedule:
       interval: "quarterly"
     groups:
-      ci:
-        patterns:
-          - "CI/*"
+      # Group patterns match dependency *names*, not file paths.
       python:
         patterns:
-          - "pyproject.toml"
+          - "*"

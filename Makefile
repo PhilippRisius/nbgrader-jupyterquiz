@@ -97,7 +97,7 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 release: dist ## package and upload a release
-	python -m flit publish dist/*
+	python -m flit publish
 
 install: clean ## install the package to the active Python's site-packages
 	python -m pip install .

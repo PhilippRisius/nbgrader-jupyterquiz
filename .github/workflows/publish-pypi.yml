@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions:
+      contents: read
       # IMPORTANT: this permission is mandatory for trusted publishing
       id-token: write
     steps:
@@ -24,9 +25,11 @@ jobs:
           egress-policy: block
           allowed-endpoints: >
             files.pythonhosted.org:443
+            fulcio.sigstore.dev:443
             github.com:443
             pypi.org:443
-            ruf-repo-cdn.sigstore.dev:443
+            rekor.sigstore.dev:443
+            tuf-repo-cdn.sigstore.dev:443
             upload.pypi.org:443
 
       - name: Checkout Repository
