@@ -44,13 +44,34 @@ function _nbgjqReadXsrfToken() {
  * resolved.  All errors are logged and swallowed; this function must
  * not throw.
  *
+ * Each save is a GET-modify-PUT of the whole file, so concurrent saves
+ * (a quick run of clicks, or answers to two questions within one
+ * round-trip) would overwrite each other's updates and could leave an
+ * older selection as the final one on disk.  Saves are therefore
+ * chained on a page-global promise: each starts only after the
+ * previous one has finished.  The chain lives on `window` because
+ * every display_quiz() output re-defines this function in its own
+ * scope.
+ *
  * payload shape is type-tagged (schema_version 1):
  *   { type: "multiple_choice", selected: "Paris" }
  *   { type: "many_choice",     selected: ["list", "dict"] }
  *   { type: "numeric",         raw: "1/2", parsed: 0.5 }
- *   { type: "string",          value: "hello" } */
-async function recordResponse(gradeId, qnum, payload) {
-    if (!gradeId) return;
+ *   { type: "string",          value: "hello" }
+ * Choice selections carry the answer's source text (as written in the
+ * quiz), not its rendered text. */
+function recordResponse(gradeId, qnum, payload) {
+    if (!gradeId) return Promise.resolve();
+    var previous = window._nbgjqRecordChain || Promise.resolve();
+    var current = previous.then(function () {
+        return _nbgjqSaveResponse(gradeId, qnum, payload);
+    });
+    // Never let one failed save stall every later one.
+    window._nbgjqRecordChain = current.catch(function () {});
+    return current;
+}
+
+async function _nbgjqSaveResponse(gradeId, qnum, payload) {
     var loc = _nbgjqDiscoverLocation();
     if (!loc) {
         console.warn('nbgrader_jupyterquiz: cannot discover notebook path; response not saved.');

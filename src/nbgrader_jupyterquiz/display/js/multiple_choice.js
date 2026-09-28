@@ -106,14 +106,17 @@ function check_mc() {
 
         // Sidecar recorder (no-op without data-grade-id).  In hide mode we
         // record whatever is currently selected (null when deselected); in
-        // legacy mode we record each click's target.
+        // legacy mode we record each click's target.  The answer's source
+        // text is recorded, not the rendered button text (which differs for
+        // math, links, multi-line text and code blocks).
         var __gradeId = outerContainer.dataset.gradeId;
         if (__gradeId) {
+            var __answer = ("answer" in label.dataset) ? label.dataset.answer : response;
             var __selected;
             if (hideMode) {
-                __selected = (label.dataset.selected == "true") ? response : null;
+                __selected = (label.dataset.selected == "true") ? __answer : null;
             } else {
-                __selected = response;
+                __selected = __answer;
             }
             recordResponse(__gradeId, qnum, {
                 type: "multiple_choice",
@@ -258,7 +261,9 @@ function check_mc() {
                     __match = __ans.classList && __ans.classList.contains('correctButton');
                 }
                 if (__match) {
-                    __selected.push((__ans.innerText || __ans.textContent || "").trim());
+                    __selected.push(("answer" in __ans.dataset)
+                        ? __ans.dataset.answer
+                        : (__ans.innerText || __ans.textContent || "").trim());
                 }
             }
             recordResponse(__gradeId, qnum, {
@@ -323,6 +328,8 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
         var aSpan = document.createElement('span');
         if ("answer" in item) {
             aSpan.innerHTML = jaxify(item.answer);
+            // Source text, recorded to the sidecar on selection.
+            btn.setAttribute('data-answer', item.answer);
         }
         btn.append(aSpan);
 
@@ -335,7 +342,7 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
             codeSpan.append(codePre);
             var codeCode = document.createElement('code');
             codePre.append(codeCode);
-            codeCode.innerHTML = item.code;
+            codeCode.textContent = item.code;
             btn.append(codeSpan);
         }
 

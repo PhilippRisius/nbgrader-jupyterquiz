@@ -99,7 +99,7 @@ class Question {
             codeDiv.className = 'QuizCode';
             const pre = document.createElement('pre');
             const codeEl = document.createElement('code');
-            codeEl.innerHTML = qa.code;
+            codeEl.textContent = qa.code;
             pre.appendChild(codeEl);
             codeDiv.appendChild(pre);
             this.outerqDiv.appendChild(codeDiv);
