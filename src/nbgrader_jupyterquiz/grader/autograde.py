@@ -322,11 +322,15 @@ def _load_sidecar_responses(grade_id: str) -> dict[str, Any] | None:
         return None
     try:
         data = json.loads(sidecar.read_text())
-    except (json.JSONDecodeError, OSError) as exc:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
         raise GradeQuizError(f"Cannot read {sidecar}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise GradeQuizError(f"Malformed {sidecar}: expected a JSON object, got {type(data).__name__}.")
     if data.get("schema_version") not in SUPPORTED_SCHEMA_VERSIONS:
         raise GradeQuizError(f"Unsupported schema_version in {sidecar}: {data.get('schema_version')!r}. Supported: {SUPPORTED_SCHEMA_VERSIONS}.")
-    return (data.get("responses") or {}).get(grade_id)
+    responses = data.get("responses")
+    entry = responses.get(grade_id) if isinstance(responses, dict) else None
+    return entry if isinstance(entry, dict) else None
 
 
 def _grade_question(qnum: int, question: dict[str, Any], recorded: Any) -> QuestionResult:

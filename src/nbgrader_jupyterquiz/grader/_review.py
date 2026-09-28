@@ -13,6 +13,8 @@ from __future__ import annotations
 from html import escape
 from typing import TYPE_CHECKING, Any
 
+from ._scoring import picked_choices
+
 
 if TYPE_CHECKING:  # pragma: no cover - import cycle guard
     from .autograde import QuestionResult, QuizResult
@@ -111,30 +113,6 @@ def render_review_html(result: QuizResult) -> str:
     return "\n".join(parts)
 
 
-def _extract_picked(recorded: Any) -> list[str]:
-    """
-    Normalise the student's recorded MC response to a list of strings.
-
-    Parameters
-    ----------
-    recorded : Any
-        Raw recorded payload from the sidecar.
-
-    Returns
-    -------
-    list of str
-        Possibly empty list of selected answer texts.
-    """
-    if not isinstance(recorded, dict):
-        return []
-    selected = recorded.get("selected")
-    if isinstance(selected, list):
-        return [s for s in selected if isinstance(s, str)]
-    if isinstance(selected, str):
-        return [selected]
-    return []
-
-
 def _render_review_choice(detail: QuestionResult) -> str:
     """
     Render the review row for a single-choice / many-choice question.
@@ -149,12 +127,12 @@ def _render_review_choice(detail: QuestionResult) -> str:
     str
         HTML fragment listing each answer option with correctness markers.
     """
-    picked = _extract_picked(detail.recorded)
+    picked = picked_choices(detail.question, detail.recorded)
     rows = []
-    for answer in detail.question.get("answers", []):
+    for idx, answer in enumerate(detail.question.get("answers", [])):
         text = answer.get("answer", "")
         is_correct = bool(answer.get("correct"))
-        is_picked = text in picked
+        is_picked = idx in picked
         cls = "jq-review-choice"
         tag = ""
         if is_correct and is_picked:
@@ -241,8 +219,9 @@ def _fmt_numeric_expected(e: Any) -> str:
     Returns
     -------
     str
-        ``"[min, max)"`` for a range, ``str(value)`` otherwise.
+        ``"[min, max]"`` (closed interval, as graded) for a range,
+        ``str(value)`` otherwise.
     """
     if isinstance(e, tuple):
-        return f"[{e[0]}, {e[1]})"
+        return f"[{e[0]}, {e[1]}]"
     return str(e)

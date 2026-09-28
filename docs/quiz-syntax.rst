@@ -107,8 +107,10 @@ line.
      - A code block displayed as (or instead of) the question text.
    * - ``[N]``
      - ``NM`` only
-     - Precision: the answer is rounded to *N* significant digits before
-       comparison.  If omitted, exact equality is required.
+     - Precision: the student's answer (and each ``<value>``) is rounded
+       to *N* significant digits before comparison, with ties rounded
+       away from zero like JavaScript's ``toPrecision``.  If omitted,
+       exact equality is required.
    * - ``<N>``
      - all
      - Number of columns for the answer layout.  Default: 2 (CSS default;
@@ -203,6 +205,19 @@ Each answer line for a numeric question specifies one of three forms:
        answer.  At most one default answer should be present per question.
    * - ``(feedback text)``
      - May be combined with any of the above forms.
+
+Answers are checked top to bottom and the **first** matching value or
+range decides whether the submission is correct — in the browser and in
+the autograder alike.  This lets you catch a specific wrong answer with
+targeted feedback inside a broader correct range, as long as the wrong
+answer is listed first:
+
+.. code-block:: markdown
+
+    * (NM) "What is $\pi$ to two decimal places?"
+      - <3>             (Too coarse — two decimal places, please.)
+      + [3.135, 3.145]
+      - (Not quite.)
 
 Examples
 --------

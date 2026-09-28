@@ -40,9 +40,13 @@ is the catch-all for anything not matched by another answer:
     #### End Quiz
 
 The ``[3]`` after the question is the *precision* marker: the
-student's input is rounded to 3 significant figures before
-comparison.  Without ``[N]``, exact equality is required for value
-answers; ranges always compare on the raw value.
+student's input is rounded to 3 significant figures before it is
+compared against value answers *and* ranges.  Without ``[N]``, exact
+equality is required for value answers.
+
+Answers are checked top to bottom and the first match decides.  To
+single out a wrong answer that lies inside a correct range, list it
+before the range.
 
 Combining with points
 =====================
