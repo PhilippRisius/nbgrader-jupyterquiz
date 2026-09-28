@@ -1,5 +1,6 @@
 """Render HTML, CSS, and JavaScript components of the quiz display."""
 
+import html
 import importlib.resources
 from string import Template
 
@@ -41,7 +42,7 @@ def render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, n
         Opening ``<div>`` tag with all required data attributes.
     """
     preserve_json = "true" if preserve_responses else "false"
-    grade_attr = f' data-grade-id="{grade_id}"' if grade_id else ""
+    grade_attr = f' data-grade-id="{html.escape(str(grade_id), quote=True)}"' if grade_id else ""
     return (
         f'<div id="{div_id}" '
         f'data-shufflequestions="{shuffle_questions}" '
