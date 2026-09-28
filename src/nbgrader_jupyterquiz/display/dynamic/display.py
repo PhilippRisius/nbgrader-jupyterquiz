@@ -1,5 +1,6 @@
 """Entry point for displaying quizzes in Jupyter environments."""
 
+import html
 import random
 import string
 
@@ -93,6 +94,15 @@ def display_quiz(
         :func:`nbgrader_jupyterquiz.autograde.grade_quiz`.  When
         ``None`` (the default for non-nbgrader callers), the recorder
         is a no-op.
+
+    Notes
+    -----
+    If ``ref`` names a file or URL that cannot be read, an HTML notice
+    is displayed instead of raising: the generated graded cells call
+    ``display_quiz`` ahead of the grading code, and a quiz data file
+    missing from a submission must not cost the student their score.
+    (Nor may anything be written to stderr — nbgrader scores a graded
+    cell with stderr output as zero.)
     """
     assert not (shuffle_questions and preserve_responses), "Preserving responses not supported when shuffling questions."
     assert num == 1_000_000 or (not preserve_responses), "Preserving responses not supported when num is set."
@@ -106,7 +116,12 @@ def display_quiz(
     elif isinstance(colors, dict):
         color_dict.update(colors)
 
-    prefix_script, static, url = load_questions_script(ref, div_id)
+    try:
+        prefix_script, static, url = load_questions_script(ref, div_id)
+    except OSError as err:
+        message = f"Could not load quiz data from {ref!r}: {err}"
+        display(HTML(f'<div class="jq-load-error" style="color:#b02a37">{html.escape(message)}</div>'))
+        return
 
     mydiv = render_div(div_id, shuffle_questions, shuffle_answers, preserve_responses, num, max_width, border_radius, question_alignment, grade_id)
     styles = build_styles(div_id, color_dict)

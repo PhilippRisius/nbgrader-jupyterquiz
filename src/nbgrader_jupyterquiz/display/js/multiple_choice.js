@@ -106,18 +106,20 @@ function check_mc() {
 
         // Sidecar recorder (no-op without data-grade-id).  In hide mode we
         // record whatever is currently selected (null when deselected); in
-        // legacy mode we record each click's target.
+        // legacy mode we record each click's target.  The answer's source
+        // text and its position in the source answer list are recorded,
+        // not the rendered button text (which differs for math, links,
+        // multi-line text and code blocks); the position tells apart
+        // answers with identical text, such as code-only answers.
         var __gradeId = outerContainer.dataset.gradeId;
         if (__gradeId) {
-            var __selected;
-            if (hideMode) {
-                __selected = (label.dataset.selected == "true") ? response : null;
-            } else {
-                __selected = response;
-            }
+            var __answer = ("answer" in label.dataset) ? label.dataset.answer : response;
+            var __index = _nbgjqAnswerIndex(label);
+            var __isSelected = !hideMode || (label.dataset.selected == "true");
             recordResponse(__gradeId, qnum, {
                 type: "multiple_choice",
-                selected: __selected,
+                selected: __isSelected ? __answer : null,
+                selected_index: __isSelected ? __index : null,
             });
         }
     } else {
@@ -249,6 +251,7 @@ function check_mc() {
         var __gradeId = outerContainer.dataset.gradeId;
         if (__gradeId) {
             var __selected = [];
+            var __indices = [];
             for (var __i = 0; __i < answers.length; __i++) {
                 var __ans = answers[__i];
                 var __match;
@@ -258,12 +261,16 @@ function check_mc() {
                     __match = __ans.classList && __ans.classList.contains('correctButton');
                 }
                 if (__match) {
-                    __selected.push((__ans.innerText || __ans.textContent || "").trim());
+                    __selected.push(("answer" in __ans.dataset)
+                        ? __ans.dataset.answer
+                        : (__ans.innerText || __ans.textContent || "").trim());
+                    __indices.push(_nbgjqAnswerIndex(__ans));
                 }
             }
             recordResponse(__gradeId, qnum, {
                 type: "many_choice",
                 selected: __selected,
+                selected_indices: __indices,
             });
         }
 
@@ -290,6 +297,13 @@ function check_mc() {
             MathJax.typeset([fb]);
         }
     }
+}
+
+
+/* Source-list position of an answer button, or null if unknown. */
+function _nbgjqAnswerIndex(btn) {
+    var idx = parseInt(btn.dataset.answerIndex, 10);
+    return Number.isInteger(idx) && idx >= 0 ? idx : null;
 }
 
 
@@ -323,7 +337,12 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
         var aSpan = document.createElement('span');
         if ("answer" in item) {
             aSpan.innerHTML = jaxify(item.answer);
+            // Source text, recorded to the sidecar on selection.
+            btn.setAttribute('data-answer', item.answer);
         }
+        // Position in the source answer list (stable under shuffling),
+        // recorded alongside the text.
+        btn.setAttribute('data-answer-index', qa.answers.indexOf(item));
         btn.append(aSpan);
 
         // Optional inline code block
@@ -335,7 +354,7 @@ function make_mc(qa, shuffle_answers, outerqDiv, qDiv, aDiv, id) {
             codeSpan.append(codePre);
             var codeCode = document.createElement('code');
             codePre.append(codeCode);
-            codeCode.innerHTML = item.code;
+            codeCode.textContent = item.code;
             btn.append(codeSpan);
         }
 

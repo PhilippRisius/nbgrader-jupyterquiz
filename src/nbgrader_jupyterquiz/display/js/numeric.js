@@ -7,12 +7,17 @@ function check_numeric(ths, event) {
         var hideMode = (ths.dataset.hide == "true");
 
         var submission = ths.value;
+        // A blank submission must not coerce to 0 (Number("") === 0 and
+        // "" == 0 are both true), which would match a value of 0 or any
+        // range containing it.
+        var isBlank = (submission.trim() === "");
+        var usePrecision = ("precision" in ths.dataset) && (ths.dataset.precision > 0);
         if (submission.indexOf('/') != -1) {
             var sub_parts = submission.split('/');
             submission = sub_parts[0] / sub_parts[1];
         }
 
-        if (("precision" in ths.dataset) && (ths.dataset.precision > 0)) {
+        if (usePrecision && !isBlank) {
             var precision = ths.dataset.precision;
             submission = Number(Number(submission).toPrecision(precision));
         }
@@ -28,9 +33,12 @@ function check_numeric(ths, event) {
         var done = false;
         answers.every(answer => {
             correct = false;
+            if (isBlank) {
+                return false;
+            }
             if ('value' in answer) {
                 var value;
-                if ("precision" in ths.dataset) {
+                if (usePrecision) {
                     value = answer.value.toPrecision(ths.dataset.precision);
                 } else {
                     value = answer.value;
@@ -127,7 +135,7 @@ function check_numeric(ths, event) {
         var __gradeId = outerContainer.dataset.gradeId;
         if (__gradeId) {
             var __qnum = document.getElementById("quizWrap"+id).dataset.qnum;
-            var __parsed = Number.isFinite(Number(submission)) ? Number(submission) : submission;
+            var __parsed = (!isBlank && Number.isFinite(Number(submission))) ? Number(submission) : null;
             recordResponse(__gradeId, __qnum, {
                 type: "numeric",
                 raw: ths.value,

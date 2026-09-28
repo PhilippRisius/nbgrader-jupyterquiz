@@ -55,20 +55,33 @@ def test_find_quiz_regions_multiple():
 
 def test_find_quiz_regions_nested_raises():
     source = "#### Quiz\n#### Quiz\n#### End Quiz\n#### End Quiz"
-    with pytest.raises(RuntimeError, match="nested"):
+    with pytest.raises(ParseError, match="nested"):
         find_quiz_regions(source)
 
 
 def test_find_quiz_regions_end_without_begin_raises():
     source = "Some text.\n#### End Quiz"
-    with pytest.raises(RuntimeError, match="without beginning"):
+    with pytest.raises(ParseError, match="without beginning"):
         find_quiz_regions(source)
 
 
 def test_find_quiz_regions_unclosed_raises():
     source = '#### Quiz\n* (SC) "Q?"\n  + "A"'
-    with pytest.raises(RuntimeError, match="end_quiz_delimiter"):
+    with pytest.raises(ParseError, match="missing '#### End Quiz'"):
         find_quiz_regions(source)
+
+
+@pytest.mark.parametrize("heading", ["#### Quizzes", "#### Quiz:", "#### Quiz-time"])
+def test_find_quiz_regions_delimiter_must_be_whole_token(heading):
+    """A heading that merely starts with the delimiter text is ordinary markdown."""
+    quizzes, remaining = find_quiz_regions(f"{heading}\nSome text.")
+    assert quizzes == []
+    assert remaining == [heading, "Some text."]
+
+
+def test_find_quiz_regions_delimiter_followed_by_options():
+    quizzes, _ = find_quiz_regions("#### Quiz\tencoded=false\n* x\n#### End Quiz   ")
+    assert quizzes == [("\tencoded=false", ["* x"])]
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +120,17 @@ def test_split_questions_empty():
     assert split_questions([]) == []
 
 
+def test_split_questions_reports_ignored_lines():
+    """Dropped lines are reported so typos like ``*(SC)`` don't vanish silently."""
+    lines = ['* (SC) "Q?"', '  + "A"', '*(SC) "Typo?"', '+ "Unindented"', ""]
+    warnings: list[str] = []
+    result = split_questions(lines, warnings)
+    assert result == [['* (SC) "Q?"', '  + "A"']]
+    assert len(warnings) == 2
+    assert "*(SC)" in warnings[0]
+    assert "Unindented" in warnings[1]
+
+
 # ---------------------------------------------------------------------------
 # line_to_question
 # ---------------------------------------------------------------------------
@@ -141,6 +165,31 @@ def test_line_to_question_malformed_raises():
     """A line with an unparsable segment raises ParseError."""
     with pytest.raises(ParseError):
         line_to_question("* (SC) unparsable garbage")
+
+
+def test_line_to_question_unknown_type_raises():
+    with pytest.raises(ParseError, match=r"Unknown question type \(XX\)"):
+        line_to_question('* (XX) "Q?"')
+
+
+@pytest.mark.parametrize(
+    "line,match",
+    [
+        ('* (NM) "Q?" [abc]', "Invalid precision"),
+        ('* (NM) "Q?" [-1]', "between 1 and 100"),
+        ('* (NM) "Q?" [101]', "between 1 and 100"),
+        ('* (SC) "Q?" <two>', "Invalid answer_cols"),
+        ('* (SC) "Q?" {lots}', "Invalid points"),
+    ],
+)
+def test_line_to_question_bad_field_values_raise_parse_error(line, match):
+    with pytest.raises(ParseError, match=match):
+        line_to_question(line)
+
+
+def test_parse_cell_question_without_type_raises():
+    with pytest.raises(ParseError, match="no type marker"):
+        parse_cell('#### Quiz\n* "Q?"\n  + "A"\n#### End Quiz')
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +250,25 @@ def test_numeric_answer_value_with_feedback():
     assert result["feedback"] == "Too small"
     assert result["value"] == 1.0
     assert result["type"] == "value"
+
+
+@pytest.mark.parametrize(
+    "line,match",
+    [
+        ("+ [1, 2, 3]", "exactly two"),
+        ("+ [1]", "exactly two"),
+        ("+ [5, 1]", "lower bound above"),
+        ("+ [a, b]", "Invalid range"),
+        ("+ <abc>", "Invalid value"),
+    ],
+)
+def test_numeric_answer_bad_values_raise_parse_error(line, match):
+    with pytest.raises(ParseError, match=match):
+        line_to_numeric_answer(line)
+
+
+def test_numeric_answer_negative_range():
+    assert line_to_numeric_answer("+ [-1, 1]")["range"] == [-1.0, 1.0]
 
 
 def test_numeric_answer_value_and_range_raises():
@@ -277,13 +345,14 @@ def test_parse_cell_empty_quiz_region_raises():
         parse_cell(source)
 
 
-def test_parse_cell_validation_error_propagates():
+def test_parse_cell_validation_error_raised_as_parse_error():
     """An answer missing its required 'answer' text fails schema validation."""
     # line_to_mc_answer parses this as {correct: True, feedback: "..."} —
     # the MC schema requires both 'answer' and 'correct', so validation fails.
     source = '#### Quiz\n* (SC) "A question?"\n  + (Feedback but no answer text)\n#### End Quiz'
-    with pytest.raises(jsonschema.exceptions.ValidationError):
+    with pytest.raises(ParseError, match="'answer' is a required property") as excinfo:
         parse_cell(source)
+    assert isinstance(excinfo.value.__cause__, jsonschema.exceptions.ValidationError)
 
 
 def test_parse_cell_sc_with_multiple_correct_raises():
@@ -507,6 +576,26 @@ def test_parse_quiz_options_ignores_unknown_keys():
 
     result = parse_quiz_options("unknown_key=value encoded=false")
     assert result["encoded"] is False
+    assert "unknown_key" not in result
+
+
+def test_parse_quiz_options_reports_ignored_tokens():
+    """Typos in option names or values must not be silently dropped."""
+    from nbgrader_jupyterquiz.grader.parse import parse_quiz_options
+
+    warnings: list[str] = []
+    result = parse_quiz_options("hide_corectness=true graded=no encoded=FALSE", warnings)
+    assert result["hide_correctness"] is None
+    assert result["graded"] is None
+    assert result["encoded"] is False
+    assert len(warnings) == 2
+    assert "hide_corectness" in warnings[0]
+    assert "graded expects true or false" in warnings[1]
+
+
+def test_parse_cell_surfaces_option_warnings():
+    quizzes, _ = parse_cell('#### Quiz hide=true\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz')
+    assert any("hide=true" in w for w in quizzes[0].warnings)
 
 
 def test_parse_quiz_options_token_without_equals_ignored():

@@ -1,8 +1,8 @@
 """Nbgrader preprocessor that converts markdown quiz regions into interactive quizzes."""
 
+import html
 import itertools
 import json
-import pathlib
 import pprint
 from textwrap import dedent
 
@@ -80,20 +80,28 @@ class CreateQuiz(NbGraderPreprocessor):
         ),
     ).tag(config=True)
 
-    # Current notebook name and quiz-cell counter (reset per notebook via preprocess).
+    # Current notebook name, quiz-cell counter and claimed data filenames
+    # (all reset per notebook in preprocess).
     name = ""
     quiz_cell_counter = itertools.count()
+    # ``filename=`` files claimed so far, keyed by (assignment, path) and
+    # mapped to the claiming notebook.  Notebooks of one assignment share
+    # a release directory, so two of them must not write the same file.
+    _claimed_files: dict[tuple[str, str], str] | None = None
 
     def preprocess(self, nb: NotebookNode, resources: ResourcesDict) -> tuple[NotebookNode, ResourcesDict]:
         """
-        Process all cells in the notebook, expanding quiz regions.
+        Process all markdown cells in the notebook, expanding quiz regions.
 
         Parameters
         ----------
         nb : NotebookNode
             Source notebook.
         resources : ResourcesDict
-            Nbgrader resources dict (provides ``unique_key``).
+            Nbgrader resources dict (provides ``unique_key``).  Quiz data
+            files requested with ``filename=`` are added to
+            ``resources["outputs"]`` so nbconvert writes them next to the
+            output notebook.
 
         Returns
         -------
@@ -105,19 +113,26 @@ class CreateQuiz(NbGraderPreprocessor):
             del nb.metadata["celltoolbar"]
 
         self.name = resources["unique_key"]
+        self.quiz_cell_counter = itertools.count()
+        self._filenames: set[str] = set()
+        self._assignment = str((resources.get("nbgrader") or {}).get("assignment", ""))
+        if self._claimed_files is None:
+            self._claimed_files = {}
+        # Re-processing a notebook (e.g. ``--force``) releases its old claims.
+        for key in [k for k, owner in self._claimed_files.items() if owner == self.name]:
+            del self._claimed_files[key]
         new_cells: list[NotebookNode] = []
-        imported = False
 
         for cell in nb["cells"]:
+            # Quizzes live in markdown task cells; a code cell with a
+            # ``#### Quiz ...`` comment is not a quiz.
+            if cell.cell_type != "markdown":
+                new_cells.append(cell)
+                continue
             quizzes, cell_contents = self._safe_parse_cell(cell)
             quiz_cells: list[NotebookNode] = []
             if quizzes:
-                quiz_cells, imported = self._handle_quiz_cell(
-                    cell,
-                    quizzes,
-                    cell_contents,
-                    imported,
-                )
+                quiz_cells = self._handle_quiz_cell(cell, quizzes, cell_contents, resources)
             cell.source = "\n".join(cell_contents)
             new_cells.append(cell)
             new_cells.extend(quiz_cells)
@@ -127,13 +142,17 @@ class CreateQuiz(NbGraderPreprocessor):
 
     def _safe_parse_cell(self, cell: NotebookNode) -> tuple[list[parse.Quiz], list[str]]:
         """
-        Parse a cell, reraising ParseErrors on task cells and swallowing elsewhere.
+        Parse a cell, surfacing parse errors and warnings through nbgrader's log.
 
         Any non-fatal warnings raised by the parser (e.g. MC with 0 or 1
-        correct answers) are re-emitted through ``self.log.warning`` so
-        they surface in nbgrader's UI output.  Fatal parse errors on
-        task cells are logged through ``self.log.error`` before being
-        re-raised.
+        correct answers, ignored lines or options) are re-emitted
+        through ``self.log.warning`` so they surface in nbgrader's UI
+        output.  Fatal parse errors on task cells are logged through
+        ``self.log.error`` before being re-raised.  On other cells they
+        raise when ``enforce_metadata`` is on (a quiz outside a task
+        cell is an error either way, and leaving it unparsed would ship
+        its answer key to students) and are logged as a warning
+        otherwise.
 
         Parameters
         ----------
@@ -147,6 +166,14 @@ class CreateQuiz(NbGraderPreprocessor):
             is not a task cell.
         cell_contents : list[str]
             Remaining lines of the cell with quiz regions stripped.
+
+        Raises
+        ------
+        parse.ParseError
+            If a task cell's quiz region is malformed.
+        RuntimeError
+            If a non-task cell's quiz region is malformed and
+            ``enforce_metadata`` is on.
         """
         grade_id = cell.metadata.get("nbgrader", {}).get("grade_id")
         cell_ref = f"cell {grade_id!r}" if grade_id else "cell (unnamed)"
@@ -160,8 +187,15 @@ class CreateQuiz(NbGraderPreprocessor):
             if utils.is_task(cell):
                 self.log.error("Quiz parse error in %s: %s", cell_ref, err)
                 raise
-            if not self.enforce_metadata:
-                self.log.warning("Cell could not be parsed, but metadata enforcement is off.")
+            if self.enforce_metadata:
+                raise RuntimeError(
+                    f"Malformed quiz region in a non-task cell ({err}); please mark all quiz cells as 'Manually Graded Task'."
+                ) from err
+            self.log.warning(
+                "Quiz region in non-task %s could not be parsed and is left unchanged (metadata enforcement is off): %s",
+                cell_ref,
+                err,
+            )
             return [], cell.source.split("\n")
         for quiz in quizzes:
             for warning in quiz.warnings:
@@ -173,8 +207,8 @@ class CreateQuiz(NbGraderPreprocessor):
         cell: NotebookNode,
         quizzes: list[parse.Quiz],
         cell_contents: list[str],
-        imported: bool,
-    ) -> tuple[list[NotebookNode], bool]:
+        resources: ResourcesDict,
+    ) -> list[NotebookNode]:
         """
         Transform one quiz-bearing cell: validate, promote, emit code cells.
 
@@ -187,16 +221,14 @@ class CreateQuiz(NbGraderPreprocessor):
         cell_contents : list[str]
             Mutable list of remaining cell lines; inline/hidden span
             content is appended to this list in place.
-        imported : bool
-            Whether the ``display_quiz`` import statement has already
-            been emitted upstream in this notebook.
+        resources : ResourcesDict
+            Nbgrader resources dict; receives ``filename=`` quiz data
+            under ``resources["outputs"]``.
 
         Returns
         -------
-        quiz_cells : list[NotebookNode]
+        list[NotebookNode]
             Generated code cells to append after the task cell.
-        imported : bool
-            Updated flag (``True`` once any quiz cell has been emitted).
         """
         if not utils.is_task(cell) and self.enforce_metadata:
             raise RuntimeError("Quiz detected in a non-task cell; please mark all quiz cells as 'Manually Graded Task'.")
@@ -216,23 +248,19 @@ class CreateQuiz(NbGraderPreprocessor):
         quiz_cells: list[NotebookNode] = []
         for quiz_idx, quiz in enumerate(quizzes):
             tag = f"{quiz_cell_idx}.{quiz_idx}"
-            source_ref = self._inject_quiz_content(quiz, tag, cell_contents)
-            imp = "" if imported else "from nbgrader_jupyterquiz.display import display_quiz\n"
-            imported = True
+            source_ref = self._inject_quiz_content(quiz, tag, cell_contents, resources)
             quiz_graded = host_graded and quiz.options.get("graded") is not False
             quiz_cells.append(
                 self._build_quiz_code_cell(
                     quiz,
                     quiz_idx,
-                    tag,
                     source_ref,
-                    imp,
                     grade_id,
                     quiz_graded,
                     len(quizzes),
                 )
             )
-        return quiz_cells, imported
+        return quiz_cells
 
     @staticmethod
     def _propagate_hide_correctness(quizzes: list[parse.Quiz]) -> None:
@@ -271,75 +299,81 @@ class CreateQuiz(NbGraderPreprocessor):
         quiz: parse.Quiz,
         tag: str,
         cell_contents: list[str],
+        resources: ResourcesDict,
     ) -> str:
         """
-        Render the quiz JSON into the host cell (inline span or filename).
+        Embed the quiz JSON in the host cell, or emit it as a data file.
 
-        Returns the selector/path ``display_quiz`` should use to locate
-        the question data at render time.
+        Returns the reference ``display_quiz`` should use to locate the
+        question data at render time.
 
         Parameters
         ----------
         quiz : parse.Quiz
             Parsed quiz region.
         tag : str
-            ``"<cell_idx>.<quiz_idx>"`` tag used as both the span id
-            suffix and the ``display_quiz`` ref suffix.
+            ``"<cell_idx>.<quiz_idx>"`` tag used as the span id suffix.
         cell_contents : list[str]
-            Mutable cell source lines; the hidden/visible span (or the
-            plaintext ``tag=...`` variant) is appended when the
-            ``inline`` option is set.
+            Mutable cell source lines; the hidden or visible span is
+            appended unless ``filename=`` is set.
+        resources : ResourcesDict
+            Nbgrader resources dict; with ``filename=``, the JSON is
+            stored under ``resources["outputs"][filename]`` so that
+            nbconvert's ``FilesWriter`` writes it next to the output
+            (release) notebook, where the student's ``display_quiz``
+            call looks for it.
 
         Returns
         -------
         str
-            Selector string passed as the first arg to ``display_quiz``:
-            the filename when ``filename=`` is set, else ``"#<name>"``.
+            First argument for ``display_quiz``: the filename when
+            ``filename=`` is set, else ``"#<name>:<tag>"``.
         """
         display_questions = parse.redact_answer_key(quiz.questions) if quiz.options.get("hide_correctness") else quiz.questions
         questions_json = json.dumps(display_questions)
-        if quiz.options.get("encoded"):
-            questions_json = encode.to_base64(questions_json)
-
-        if quiz.options.get("inline"):
-            if quiz.options.get("hidden"):
-                # ``tex2jax_ignore`` / ``mathjax_ignore`` keep MathJax
-                # from rewriting ``$...$`` inside the JSON payload.
-                # Backslashes are doubled so JupyterLab's markdown
-                # renderer (which consumes ``\X`` punctuation escapes
-                # before the JS reads ``element.innerHTML``) leaves
-                # JSON's own ``\"`` / ``\\`` / ``\uXXXX`` escapes
-                # intact for ``JSON.parse``.  No-op for the default
-                # ``encoded=true`` path — base64 has no backslashes.
-                span_json = questions_json.replace("\\", "\\\\").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                cell_contents.append(
-                    f'<span style="display:none" id="{self.name}:{tag}" class="{self.name}:{tag} tex2jax_ignore mathjax_ignore">{span_json}</span>'
-                )
-            else:
-                cell_contents.append(f"{tag}={questions_json}")
 
         if filename := quiz.options.get("filename"):
-            try:
-                with pathlib.Path(filename).open("w") as f:
-                    f.writelines(questions_json)
-            except OSError:
-                self.log.error("Cannot open for writing: %s", filename)
+            # The loader splices the file into JavaScript as a literal,
+            # so it must be plain JSON: ``encoded`` does not apply.
+            if filename in self._filenames:
+                raise RuntimeError(f"Quiz data file {filename!r} is used by more than one quiz in notebook {self.name!r}.")
+            key = (self._assignment, filename)
+            owner = self._claimed_files.setdefault(key, self.name)
+            if owner != self.name:
+                raise RuntimeError(f"Quiz data file {filename!r} of notebook {self.name!r} is already written by notebook {owner!r}.")
+            self._filenames.add(filename)
+            resources.setdefault("outputs", {})[filename] = questions_json.encode("utf-8")
             return filename
-        return f"#{self.name}"
+
+        if quiz.options.get("encoded"):
+            questions_json = encode.to_base64(questions_json)
+        # ``tex2jax_ignore`` / ``mathjax_ignore`` keep MathJax from
+        # rewriting ``$...$`` inside the JSON payload.  Backslashes are
+        # doubled so JupyterLab's markdown renderer (which consumes
+        # ``\X`` punctuation escapes before the JS reads
+        # ``element.innerHTML``) leaves JSON's own ``\"`` / ``\\`` /
+        # ``\uXXXX`` escapes intact for ``JSON.parse``.  No-op for the
+        # default ``encoded=true`` path — base64 has no backslashes.
+        span_json = questions_json.replace("\\", "\\\\").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        span_id = html.escape(f"{self.name}:{tag}", quote=True)
+        style = ' style="display:none"' if quiz.options.get("hidden") else ""
+        cell_contents.append(f'<span{style} id="{span_id}" class="{span_id} tex2jax_ignore mathjax_ignore">{span_json}</span>')
+        return f"#{self.name}:{tag}"
 
     def _build_quiz_code_cell(  # noqa: PLR0913
         self,
         quiz: parse.Quiz,
         quiz_idx: int,
-        tag: str,
         source_ref: str,
-        imp: str,
         grade_id: str | None,
         graded_mode: bool,
         region_count: int,
     ) -> NotebookNode:
         """
         Build one code cell — graded (hidden tests + answer key) or plain.
+
+        Every cell carries its own ``display_quiz`` import so it renders
+        even when run on its own (e.g. after a kernel restart).
 
         Parameters
         ----------
@@ -349,14 +383,9 @@ class CreateQuiz(NbGraderPreprocessor):
             0-based index of this quiz within its host task cell
             (used to uniquify the graded cell's grade_id when multiple
             quizzes share one task cell).
-        tag : str
-            ``"<cell_idx>.<quiz_idx>"`` tag used as both the DOM span id
-            suffix and the ``display_quiz`` ref suffix.
         source_ref : str
-            First argument to ``display_quiz``: filename or ``"#<name>"``.
-        imp : str
-            Either an empty string or the one-time ``from … import
-            display_quiz`` statement to prepend on the first cell.
+            First argument to ``display_quiz``: filename or
+            ``"#<name>:<tag>"``.
         grade_id : str or None
             Task cell's nbgrader grade_id, if any.
         graded_mode : bool
@@ -372,9 +401,14 @@ class CreateQuiz(NbGraderPreprocessor):
             New code cell with ``["remove-input"]`` tag and, in graded
             mode, nbgrader metadata so ``SaveCells`` registers it.
         """
+        # JSON string syntax is valid Python and keeps the double quotes
+        # of earlier releases; unlike raw interpolation it survives
+        # quotes or backslashes in notebook names and filenames.
+        ref = json.dumps(source_ref, ensure_ascii=False)
+        imp = "from nbgrader_jupyterquiz.display import display_quiz\n"
         if not graded_mode:
             return nbformat.v4.new_code_cell(
-                source=f'{imp}display_quiz("{source_ref}:{tag}", grade_id={grade_id!r})',
+                source=f"{imp}display_quiz({ref}, grade_id={grade_id!r})",
                 metadata={"tags": ["remove-input"]},
             )
 
@@ -393,7 +427,7 @@ class CreateQuiz(NbGraderPreprocessor):
         # execute_result becomes the partial-credit score.
         cell_source = (
             f"{imp}"
-            f'display_quiz("{source_ref}:{tag}", grade_id={cell_grade_id!r})\n'
+            f"display_quiz({ref}, grade_id={cell_grade_id!r})\n"
             "### BEGIN HIDDEN TESTS\n"
             "from nbgrader_jupyterquiz import grade_quiz\n"
             f"_questions = {questions_literal}\n"

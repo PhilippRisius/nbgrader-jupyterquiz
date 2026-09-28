@@ -21,14 +21,18 @@ function show_questions(json, container) {
         questions = getRandomSubarray(json, numQuestions);
     }
 
-    questions.forEach((qa, index) => {
+    questions.forEach((qa) => {
         const id = makeid(8);
         const options = {
             shuffleAnswers: shuffleAnswers,
             preserveResponses: preserveResponses,
             maxWidth: maxWidth
         };
-        Question.create(qa, id, index, options, container);
+        // Index into the original list, not the displayed position: the
+        // recorder keys responses by it and the autograder maps them back
+        // onto the answer key in source order, so a shuffled or truncated
+        // display must not renumber questions.
+        Question.create(qa, id, json.indexOf(qa), options, container);
     });
 
     if (preserveResponses) {

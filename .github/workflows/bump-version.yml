@@ -27,8 +27,7 @@ on:
       - CONTRIBUTING.rst
       - Makefile
       - .readthedocs.yml
-      - docs/*.py
-      - docs/*.rst
+      - docs/**
       - environment-docs.yml
       - pyproject.toml
       - tests/**.py
@@ -79,8 +78,8 @@ jobs:
       - name: Conditional Bump Version
         run: |
           CURRENT_VERSION=$(bump-my-version show current_version)
-          if [[ ${CURRENT_VERSION} =~ -dev(\.\d+)? ]]; then
-            echo "Development version (ends in 'dev(\.\d+)?'), bumping 'build' version"
+          if [[ ${CURRENT_VERSION} =~ -dev(\.[0-9]+)? ]]; then
+            echo "Development version (ends in 'dev(\.[0-9]+)?'), bumping 'build' version"
             bump-my-version bump build
           else
             echo "Version is stable, bumping 'patch' version"

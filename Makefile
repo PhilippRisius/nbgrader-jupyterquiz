@@ -56,7 +56,7 @@ clean-test: ## remove test and coverage artifacts
 
 lint: ## check style
 	python -m ruff check src/nbgrader_jupyterquiz tests
-	python -m numpydoc lint src/nbgrader_jupyterquiz/**.py
+	python -m numpydoc lint $(shell find src/nbgrader_jupyterquiz -name "*.py")
 
 test: ## run tests quickly with the default Python
 	python -m pytest
@@ -97,7 +97,7 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 release: dist ## package and upload a release
-	python -m flit publish dist/*
+	python -m flit publish
 
 install: clean ## install the package to the active Python's site-packages
 	python -m pip install .

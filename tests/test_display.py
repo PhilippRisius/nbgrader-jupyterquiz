@@ -1,10 +1,12 @@
 """Tests for the display module — focused on real failure scenarios."""
 
+from unittest.mock import patch
+
 import pytest
 
 from nbgrader_jupyterquiz.display.dynamic.display import _DEFAULT_COLORS, _FDSP_COLORS, display_quiz
 from nbgrader_jupyterquiz.display.dynamic.loader import load_questions_script
-from nbgrader_jupyterquiz.display.dynamic.renderer import build_styles
+from nbgrader_jupyterquiz.display.dynamic.renderer import build_styles, render_div
 
 
 # CSS variable names documented in docs/display-options.rst
@@ -102,3 +104,49 @@ def test_load_dom_ref_generates_id_and_class_lookup():
     assert 'getElementById("test-nb:0.0")' in script
     assert 'getElementsByClassName("test-nb:0.0")' in script
     assert static is True
+
+
+def test_load_dom_ref_escapes_quotes_in_id():
+    script, _, _ = load_questions_script('#week "1" \\ intro:0.0', "abc")
+    assert 'getElementById("week \\"1\\" \\\\ intro:0.0")' in script
+
+
+def test_load_dom_ref_parses_text_content():
+    """Parse textContent: innerHTML would re-escape ``<`` / ``&`` inside unencoded JSON strings."""
+    script, _, _ = load_questions_script("#test-nb:0.0", "abc")
+    assert "JSON.parse(element.textContent)" in script
+    assert "innerHTML" not in script
+
+
+def test_load_filename_starting_with_http_is_a_file(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "http_status.json").write_text("[]", encoding="utf-8")
+    script, static, url = load_questions_script("http_status.json", "abc")
+    assert url == ""
+    assert static is True
+
+
+def test_display_quiz_missing_file_shows_notice_instead_of_raising(tmp_path, capsys):
+    """
+    Graded cells call display_quiz before grading; a missing file must not abort the cell.
+
+    Nor may it write to stderr: nbgrader scores a graded cell with stderr output as zero.
+    """
+    with patch("nbgrader_jupyterquiz.display.dynamic.display.display") as mock_display:
+        display_quiz(str(tmp_path / "missing.json"))
+    (shown,), _ = mock_display.call_args
+    assert "Could not load quiz data" in shown.data
+    assert capsys.readouterr().err == ""
+
+
+def test_load_file_ref_reads_utf8(tmp_path):
+    path = tmp_path / "quiz.json"
+    path.write_text('[{"question": "Größe?"}]', encoding="utf-8")
+    script, static, _ = load_questions_script(str(path), "abc")
+    assert "Größe?" in script
+    assert static is True
+
+
+def test_render_div_escapes_grade_id():
+    div = render_div("abc", False, True, False, 5, 600, 10, "left", grade_id='q"1')
+    assert 'data-grade-id="q&quot;1"' in div

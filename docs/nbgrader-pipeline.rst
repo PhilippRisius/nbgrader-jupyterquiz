@@ -20,7 +20,8 @@ Writing quiz cells
 In your source notebook (under ``source/<assignment>/``), add quiz content inside
 a **Manually Graded Task** cell.  The cell type must be set to *Manually Graded
 Task* in the nbgrader cell toolbar — ``CreateQuiz`` will raise an error if a quiz
-region is found in a plain cell (unless ``enforce_metadata`` is disabled).
+region is found in a plain markdown cell (unless ``enforce_metadata`` is disabled).
+Code cells are never scanned for quiz delimiters.
 
 Inside the cell, wrap questions in ``#### Quiz`` / ``#### End Quiz`` delimiters.
 Any text outside the delimiters is preserved verbatim.  See :doc:`quiz-syntax` for
@@ -56,10 +57,12 @@ For each quiz region it:
    ``correct`` flags and numeric ``value`` / ``range`` matchers.  See
    :doc:`graded-quizzes` for the two-track storage model that keeps the
    key on the autograder side.
-4. Base64-encodes the (possibly redacted) question data and injects it as a
-   hidden ``<span>`` in the cell source.  The span carries
-   ``tex2jax_ignore`` / ``mathjax_ignore`` classes so MathJax leaves the
-   embedded JSON untouched.
+4. Base64-encodes the (possibly redacted) question data (unless
+   ``encoded=false``) and injects it as a hidden ``<span>`` in the cell
+   source.  The span carries ``tex2jax_ignore`` / ``mathjax_ignore``
+   classes so MathJax leaves the embedded JSON untouched.  With
+   ``filename=...`` the data is instead written as a plain JSON file next
+   to the release notebook; see :doc:`quiz-syntax`.
 5. Appends a code cell.  In graded mode, that cell carries an
    nbgrader-tracked ``### BEGIN HIDDEN TESTS`` block embedding the full
    answer key plus a call to :func:`~nbgrader_jupyterquiz.grade_quiz`.
@@ -128,9 +131,12 @@ The preprocessor exposes three configurable traitlets:
      - The string that closes a quiz region.
    * - ``enforce_metadata``
      - ``True``
-     - Raise an error if a quiz region is found outside a *Manually Graded Task*
-       cell.  Disable only if you are using ``nbgrader generate_assignment``
-       without the full grading pipeline.
+     - Raise an error if a quiz region — well-formed or not — is found
+       outside a *Manually Graded Task* cell.  When disabled, well-formed
+       quizzes in plain cells are converted and malformed ones are left
+       unchanged with a warning (their source, answer key included,
+       then ships verbatim).  Disable only if you are using
+       ``nbgrader generate_assignment`` without the full grading pipeline.
 
 To override a traitlet, add it to ``nbgrader_config.py``:
 

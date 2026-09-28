@@ -2,19 +2,91 @@
 Changelog
 =========
 
-..
-    `Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
-    ------------------------------------------------------------------------------
+`Unreleased <https://github.com/PhilippRisius/nbgrader-jupyterquiz>`_ (latest)
+------------------------------------------------------------------------------
 
-    Contributors:
+Contributors: Philipp Emmo Tobias Risius (:user:`PhilippRisius`)
 
-    Changes
-    ^^^^^^^
-    * No change.
+Developed with assistance from Claude (Anthropic) — see commit trailers
+for per-commit attribution.  All entries below: :pull:`35`.
 
-    Fixes
-    ^^^^^
-    * No change.
+Changes
+^^^^^^^
+* Every malformed quiz now raises ``ParseError`` naming the offending
+  field — including nested/unclosed delimiters (previously
+  ``RuntimeError``), unknown or missing type codes (``KeyError``),
+  non-numeric ``[N]`` / ``<N>`` / ``{N}`` / ``<value>`` (``ValueError``)
+  and schema violations (``jsonschema.ValidationError``, now chained as
+  the cause).  Ranges must have exactly two bounds with ``min <= max``.
+* Ignored input is reported in the ``generate_assignment`` log instead
+  of vanishing: unknown quiz options (e.g. ``hide_corectness=true``),
+  boolean options with values other than ``true`` / ``false``, and
+  lines in a quiz region that are neither question, answer nor
+  continuation (e.g. ``*(SC)`` without a space).
+* Quiz delimiters must be followed by whitespace or end the line, so a
+  heading like ``#### Quizzes`` is ordinary markdown.
+* With ``enforce_metadata`` on (the default), a *malformed* quiz region
+  in a non-task cell now raises, like a well-formed one always did;
+  previously it was skipped silently and shipped to students verbatim,
+  answer key included.
+* ``inline=false`` without ``filename`` (a quiz with nothing to display)
+  is a ``ParseError``.
+* Every generated quiz cell imports ``display_quiz`` itself, so it
+  renders when run on its own, e.g. after a kernel restart.
+* Numeric and string questions are graded first-match-wins, as the
+  display JS always evaluated them; see :doc:`quiz-syntax`.
+
+Fixes
+^^^^^
+* **Correct choice answers containing math, links, multi-line text or
+  a code block were graded wrong.**  The recorder stored the button's
+  rendered text (``$x$`` → ``\(x\)``, collapsed whitespace, code text
+  appended) instead of the answer source.  The JS now records the
+  source text and the answer's position (which also tells apart
+  code-only answers), and the autograder also recognises the rendered
+  form, so sidecars written by v0.5.0 grade correctly.
+* With ``encoded=false``, ``<``, ``>`` and ``&`` in answers reached the
+  browser as HTML entities.
+* Concurrent sidecar saves overwrote each other, losing answers given
+  in quick succession; saves are now serialised.
+* A blank numeric submission was recorded as ``0`` (and shown as
+  correct in self-check mode when the answer was 0); it is now
+  recorded as no answer.
+* ``[0]`` precision threw ``RangeError`` in the browser.
+* Precision rounding in the autograder rounded ties half-to-even while
+  the browser rounds half away from zero (``toPrecision``).
+* With ``shuffle_questions`` or ``num``, responses were recorded against
+  the displayed position instead of the question.
+* The feedback review showed ranges as half-open ``[min, max)``; they
+  are graded as closed intervals.
+* ``filename=`` did not work: the file landed in the course root instead
+  of the release directory, base64-encoded by default, and the generated
+  ``display_quiz`` call pointed at a non-existent ``<file>:<tag>`` path.
+  Two notebooks of one assignment may not share a data file, and a data
+  file missing from a submission no longer zeroes the quiz's score.
+* Precision markers above ``[28]`` crashed the autograder.
+* ``hidden=false`` emitted data ``display_quiz`` could not locate.
+* A code cell containing a ``#### Quiz`` comment aborted
+  ``generate_assignment``.
+* Notebook names containing quotes or backslashes produced invalid
+  generated code.
+* Code blocks are rendered as literal text, so ``a<b`` or ``List<int>``
+  no longer disappear as HTML.
+* Hand-edited or corrupt ``responses.json`` files raise
+  ``GradeQuizError`` or grade as unanswered instead of crashing with
+  ``AttributeError`` / ``TypeError``.
+* The wheel now ships the upstream jupyterquiz MIT licence
+  (``LICENSES/jupyterquiz-MIT.txt``) alongside the package licence.
+* CI lint failed under ruff ≥ 0.16 (preview rule
+  ``property-docstring-starts-with-verb``); the tox lint env now pins
+  ruff to the pre-commit version.  ``make lint`` only ran numpydoc on
+  ``__init__.py``, and ``make release`` passed arguments ``flit
+  publish`` does not accept.
+* Workflows: the draft-release job could not reach the GitHub API
+  through its egress block list; publish jobs keep ``contents: read``
+  and allow the correct Sigstore hosts; CodeQL also scans the bundled
+  JavaScript and the workflows; dependabot groups pip updates as
+  intended.
 
 .. _changes_0.5.0:
 
