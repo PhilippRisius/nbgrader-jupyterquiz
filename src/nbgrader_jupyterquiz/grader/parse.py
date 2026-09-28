@@ -53,15 +53,22 @@ def parse_cell(
         attached to each quiz's ``warnings`` field.
     cell_contents : list[str]
         Remaining cell lines with quiz regions removed.
+
+    Raises
+    ------
+    ParseError
+        On any malformed quiz region: unbalanced delimiters, unknown
+        question types, unparsable or out-of-range field values, schema
+        violations, or inconsistent quiz options.
     """
     quizzes_lines, cell_contents = find_quiz_regions(source, begin_quiz_delimiter, end_quiz_delimiter)
 
     quizzes = []
     for header, quiz_lines in quizzes_lines:
-        quiz_options = parse_quiz_options(header)
-        question_lines = split_questions(quiz_lines)
-        questions = []
         warnings: list[str] = []
+        quiz_options = parse_quiz_options(header, warnings)
+        question_lines = split_questions(quiz_lines, warnings)
+        questions = []
 
         for lines in question_lines:
             question = parse_question(lines)
@@ -80,8 +87,8 @@ def parse_cell(
 
             try:
                 validate.validate_question(question)
-            except jsonschema.exceptions.ValidationError:
-                raise
+            except jsonschema.exceptions.ValidationError as err:
+                raise ParseError(f"Invalid question {question.get('question', '')!r}: {err.message}") from err
 
             if warning := _check_choice_cardinality(question):
                 warnings.append(warning)
@@ -224,6 +231,18 @@ def find_quiz_regions(
         Each entry is ``(options_header, quiz_lines)``.
     remaining_lines : list[str]
         Lines that fall outside any quiz region.
+
+    Raises
+    ------
+    ParseError
+        If regions are nested, an end delimiter has no matching begin,
+        or the cell ends inside a region.
+
+    Notes
+    -----
+    A delimiter only counts when it is the whole (stripped) line or is
+    followed by whitespace, so a heading such as ``#### Quizzes`` does
+    not open a region.
     """
     quizzes: list[tuple[str, list[str]]] = []
     remaining_lines: list[str] = []
@@ -232,16 +251,16 @@ def find_quiz_regions(
     in_quiz_region = False
 
     for line in source.split("\n"):
-        if line.strip().startswith(begin_quiz_delimiter):
+        if _starts_with_delimiter(line, begin_quiz_delimiter):
             if in_quiz_region:
-                raise RuntimeError("Encountered nested quiz delimiters")
+                raise ParseError(f"Encountered nested quiz delimiters: {line.strip()!r}")
             in_quiz_region = True
             quiz_options = line.strip().removeprefix(begin_quiz_delimiter)
             quiz_lines = []
 
-        elif line.strip().startswith(end_quiz_delimiter):
+        elif _starts_with_delimiter(line, end_quiz_delimiter):
             if not in_quiz_region:
-                raise RuntimeError("Encountered quiz end without beginning")
+                raise ParseError(f"Encountered quiz end without beginning: {line.strip()!r}")
             in_quiz_region = False
             quizzes.append((quiz_options, quiz_lines))
 
@@ -252,9 +271,33 @@ def find_quiz_regions(
             remaining_lines.append(line)
 
     if in_quiz_region:
-        raise RuntimeError(f"Cell ended without {end_quiz_delimiter = }")
+        raise ParseError(f"Cell ended inside a quiz region; missing {end_quiz_delimiter!r}")
 
     return quizzes, remaining_lines
+
+
+def _starts_with_delimiter(line: str, delimiter: str) -> bool:
+    """
+    Check whether a line opens with ``delimiter`` as a whole token.
+
+    Parameters
+    ----------
+    line : str
+        One physical source line.
+    delimiter : str
+        Begin or end delimiter.
+
+    Returns
+    -------
+    bool
+        True iff the stripped line equals ``delimiter`` or continues
+        with whitespace after it.
+    """
+    stripped = line.strip()
+    if not stripped.startswith(delimiter):
+        return False
+    rest = stripped[len(delimiter) :]
+    return not rest or rest[0].isspace()
 
 
 def _open_delim(text: str) -> str | None:
@@ -401,7 +444,7 @@ def _skip_paired(text: str, start: int, left: str, right: str) -> int | None:
     return None if depth > 0 else j
 
 
-def split_questions(quiz_source: list[str]) -> list[list[str]]:
+def split_questions(quiz_source: list[str], warnings: list[str] | None = None) -> list[list[str]]:
     r"""
     Split lines of a quiz region into individual question blocks.
 
@@ -421,6 +464,11 @@ def split_questions(quiz_source: list[str]) -> list[list[str]]:
     ----------
     quiz_source : list[str]
         Physical lines within a quiz delimiter region.
+    warnings : list[str], optional
+        When given, a message is appended for every non-blank line that
+        is neither a question, an answer, nor a continuation and is
+        therefore ignored (typically a mis-indented answer or a
+        question marker without a space, like ``*(SC)``).
 
     Returns
     -------
@@ -440,6 +488,7 @@ def split_questions(quiz_source: list[str]) -> list[list[str]]:
     current_question: list[str] | None = None
     current_logical: list[str] | None = None
     current_base_indent: int | None = None
+    ignored = warnings if warnings is not None else []
 
     def flush_logical() -> None:
         """Close the active logical line, validating its delimiters."""
@@ -506,6 +555,9 @@ def split_questions(quiz_source: list[str]) -> list[list[str]]:
         # Otherwise: outside content (e.g. comment between quizzes).
         # Close any active logical and ignore.
         flush_logical()
+        ignored.append(
+            f"Ignored quiz line {line!r}: questions start with '* ' at column 0, answers with '+'/'-' at column 2 under a question.",
+        )
 
     flush_logical()
     if current_question is not None:
@@ -514,7 +566,7 @@ def split_questions(quiz_source: list[str]) -> list[list[str]]:
     return questions
 
 
-def parse_quiz_options(header: str) -> dict[str, Any]:
+def parse_quiz_options(header: str, warnings: list[str] | None = None) -> dict[str, Any]:
     """
     Parse quiz options from the header line following the begin delimiter.
 
@@ -525,7 +577,11 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
         Expected format: space-separated ``key=value`` pairs.
         Boolean values are ``true`` or ``false`` (case-insensitive).
         ``filename`` takes a string value.
-        Unrecognised keys are ignored.
+    warnings : list[str], optional
+        When given, a message is appended for every token that is
+        ignored: unrecognised keys (typically typos such as
+        ``hide_corectness=true``) and boolean options whose value is
+        neither ``true`` nor ``false``.
 
     Returns
     -------
@@ -556,16 +612,21 @@ def parse_quiz_options(header: str) -> dict[str, Any]:
         "hide_correctness": None,
         "graded": None,
     }
+    ignored: list[str] = []
     for token in header.split():
         if "=" not in token:
             continue
         key, _, val = token.partition("=")
         if key == "filename":
-            result["filename"] = val
-        elif val.lower() == "true":
-            result[key] = True
-        elif val.lower() == "false":
-            result[key] = False
+            result["filename"] = val or None
+        elif key not in result:
+            ignored.append(f"Ignored unknown quiz option {token!r}; known options: {', '.join(result)}.")
+        elif val.lower() in ("true", "false"):
+            result[key] = val.lower() == "true"
+        else:
+            ignored.append(f"Ignored quiz option {token!r}: {key} expects true or false.")
+    if warnings is not None:
+        warnings.extend(ignored)
     return result
 
 
@@ -584,6 +645,8 @@ def parse_question(lines: list[str]) -> dict[str, Any]:
         Question dict matching the jupyterquiz schema.
     """
     question = line_to_question(lines[0])
+    if "type" not in question:
+        raise ParseError(f"Question line has no type marker such as (SC), (MC) or (NM): {lines[0]!r}")
 
     if question["type"] == "numeric":
         line_to_answer = line_to_numeric_answer
@@ -738,7 +801,12 @@ def parse_line(line: str, **components: tuple[str, str, Any]) -> dict[str, Any]:
                 if component in parsed:
                     raise ParseError(f"Duplicate component {component} found.")
                 extracted, line = _scan_field(line, left, right)
-                parsed[component] = typecast(extracted)
+                try:
+                    parsed[component] = typecast(extracted)
+                except ParseError:
+                    raise
+                except (TypeError, ValueError) as err:
+                    raise ParseError(f"Invalid {component} {left}{extracted}{right}: {err}") from err
                 break
         else:
             raise ParseError(f"Non-parsable component found. Left to parse: {line!r}")
@@ -790,6 +858,46 @@ def line_to_question(line: str) -> dict[str, Any]:
     """
     question_types = {"NM": "numeric", "SC": "multiple_choice", "MC": "many_choice"}
 
+    def _parse_type(raw: str) -> str:
+        """
+        Map a ``(XX)`` type code to its schema type name.
+
+        Parameters
+        ----------
+        raw : str
+            Contents between the ``(`` and ``)`` delimiters.
+
+        Returns
+        -------
+        str
+            ``"numeric"``, ``"multiple_choice"`` or ``"many_choice"``.
+        """
+        code = raw.strip()
+        if code not in question_types:
+            raise ParseError(f"Unknown question type ({code}); expected one of {', '.join(f'({c})' for c in question_types)}.")
+        return question_types[code]
+
+    def _parse_precision(raw: str) -> int:
+        """
+        Parse a ``[N]`` significant-digits marker.
+
+        Parameters
+        ----------
+        raw : str
+            Contents between the ``[`` and ``]`` delimiters.
+
+        Returns
+        -------
+        int
+            Precision between 1 and 100 (the range JavaScript's
+            ``toPrecision`` accepts), or 0 for exact comparison (same
+            as omitting the marker).
+        """
+        value = int(raw)
+        if not 0 <= value <= 100:
+            raise ParseError(f"Precision [{raw}] must be between 1 and 100 significant digits.")
+        return value
+
     def _parse_points(raw: str) -> int | float:
         """
         Parse a ``{N}`` points marker, preserving integers when possible.
@@ -809,10 +917,10 @@ def line_to_question(line: str) -> dict[str, Any]:
         return int(value) if value.is_integer() else value
 
     components = {
-        "type": ("(", ")", lambda t: question_types.get(t)),
+        "type": ("(", ")", _parse_type),
         "question": ('"', '"', str),
         "code": ("```", "```", _normalise_code_block),
-        "precision": ("[", "]", int),
+        "precision": ("[", "]", _parse_precision),
         "answer_cols": ("<", ">", int),
         "points": ("{", "}", _parse_points),
     }
@@ -841,7 +949,7 @@ def line_to_numeric_answer(line: str) -> dict[str, Any]:
     components = {
         "feedback": ("(", ")", str),
         "value": ("<", ">", float),
-        "range": ("[", "]", lambda r: list(map(float, r.split(",", maxsplit=1)))),
+        "range": ("[", "]", _parse_range),
     }
 
     answer |= parse_line(line, **components)
@@ -856,6 +964,29 @@ def line_to_numeric_answer(line: str) -> dict[str, Any]:
         answer["type"] = "default"
 
     return answer
+
+
+def _parse_range(raw: str) -> list[float]:
+    """
+    Parse a ``[min, max]`` numeric range.
+
+    Parameters
+    ----------
+    raw : str
+        Contents between the ``[`` and ``]`` delimiters.
+
+    Returns
+    -------
+    list of float
+        ``[min, max]`` with ``min <= max``.
+    """
+    parts = raw.split(",")
+    if len(parts) != 2:
+        raise ParseError(f"Range [{raw}] must have exactly two comma-separated bounds.")
+    lo, hi = (float(part) for part in parts)
+    if lo > hi:
+        raise ParseError(f"Range [{raw}] has its lower bound above its upper bound.")
+    return [lo, hi]
 
 
 def line_to_mc_answer(line: str) -> dict[str, Any]:
