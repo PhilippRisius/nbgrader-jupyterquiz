@@ -2,6 +2,7 @@
 
 import copy
 import dataclasses
+import pathlib
 from typing import Any
 
 import jsonschema.exceptions
@@ -67,6 +68,7 @@ def parse_cell(
     for header, quiz_lines in quizzes_lines:
         warnings: list[str] = []
         quiz_options = parse_quiz_options(header, warnings)
+        _validate_quiz_options(quiz_options)
         question_lines = split_questions(quiz_lines, warnings)
         questions = []
 
@@ -628,6 +630,33 @@ def parse_quiz_options(header: str, warnings: list[str] | None = None) -> dict[s
     if warnings is not None:
         warnings.extend(ignored)
     return result
+
+
+def _validate_quiz_options(options: dict[str, Any]) -> None:
+    """
+    Reject quiz-option combinations that cannot produce a working quiz.
+
+    Parameters
+    ----------
+    options : dict
+        Options as returned by :func:`parse_quiz_options`.
+
+    Raises
+    ------
+    ParseError
+        If the quiz data would not be reachable by ``display_quiz``:
+        ``inline=false`` without ``filename``, or a ``filename`` that
+        is absolute or leaves the notebook's directory (the file is
+        written next to the release notebook and loaded relative to
+        the student's copy).
+    """
+    filename = options.get("filename")
+    if not options.get("inline") and not filename:
+        raise ParseError("Quiz option inline=false requires filename=...; otherwise the quiz data is not embedded anywhere.")
+    if filename:
+        paths = (pathlib.PurePosixPath(filename), pathlib.PureWindowsPath(filename))
+        if any(p.is_absolute() or p.anchor or ".." in p.parts for p in paths):
+            raise ParseError(f"Quiz option filename={filename!r} must be a relative path inside the notebook's directory.")
 
 
 def parse_question(lines: list[str]) -> dict[str, Any]:

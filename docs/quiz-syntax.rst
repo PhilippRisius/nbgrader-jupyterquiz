@@ -35,8 +35,10 @@ Quiz-level options
 
 Text placed on the same line as ``#### Quiz``, after the delimiter, configures
 how the quiz data is embedded.  Options are space-separated ``key=value`` pairs;
-boolean values are ``true`` or ``false`` (case-insensitive).  Unrecognised keys
-are silently ignored.
+boolean values are ``true`` or ``false`` (case-insensitive).  Unrecognised keys,
+and boolean options with any other value, are ignored with a warning in the
+``nbgrader generate_assignment`` log — check it for typos such as
+``hide_corectness=true``.
 
 .. list-table::
    :header-rows: 1
@@ -51,20 +53,26 @@ are silently ignored.
    * - ``inline``
      - ``true``
      - Embed the question data directly in the markdown cell source.
-       When ``false``, the data is referenced by notebook name instead.
+       ``inline=false`` requires ``filename``; without it the quiz would
+       have no data to display, so it is a ``ParseError``.
    * - ``hidden``
      - ``true``
-     - When ``inline=true``, wrap the embedded data in a
-       ``<span style="display:none">`` so it is not visible to students.
-       Has no effect when ``inline=false``.
+     - Wrap the embedded data in a ``<span style="display:none">`` so it
+       is not visible to students.  ``hidden=false`` shows the raw data
+       in the rendered cell (a debugging aid).
    * - ``filename``
      - *(none)*
-     - Write question data to this file path instead of embedding it inline.
-       Overrides the ``inline`` option.
+     - Store the question data as plain JSON in this file instead of
+       embedding it in the cell.  ``nbgrader generate_assignment``
+       writes the file next to the release notebook, and the generated
+       ``display_quiz`` call loads it from the student's copy of the
+       assignment.  The path must be relative and stay inside the
+       notebook's directory, and each file may hold only one quiz.
+       Overrides ``inline``, ``hidden`` and ``encoded``.
 
-Example — plain JSON written to a file::
+Example — question data in a separate file::
 
-    #### Quiz encoded=false filename=quiz_data.json
+    #### Quiz filename=quiz_data.json
 
 Question types
 --------------

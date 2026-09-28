@@ -126,12 +126,40 @@ def test_multiple_quizzes_in_one_cell(preprocessor, resources):
     assert "0.1" in nb.cells[2].source
 
 
-def test_import_only_in_first_code_cell(preprocessor, resources):
+def test_import_in_every_code_cell(preprocessor, resources):
+    """Each quiz cell must render on its own, e.g. after a kernel restart."""
     nb = make_notebook(task_cell(QUIZ_SOURCE), task_cell(QUIZ_SOURCE))
     nb, _ = preprocessor.preprocess(nb, resources)
     # cells: [md0, code0, md1, code1]
     assert "import display_quiz" in nb.cells[1].source
-    assert "import display_quiz" not in nb.cells[3].source
+    assert "import display_quiz" in nb.cells[3].source
+
+
+def test_tags_restart_for_each_notebook(resources):
+    """The cell counter is per notebook, not shared across notebooks or instances."""
+    pp = CreateQuiz()
+    first, _ = pp.preprocess(make_notebook(task_cell(QUIZ_SOURCE), task_cell(QUIZ_SOURCE)), resources)
+    second, _ = pp.preprocess(make_notebook(task_cell(QUIZ_SOURCE)), {"unique_key": "other-nb"})
+    assert 'display_quiz("#test-nb:1.0"' in first.cells[3].source
+    assert 'display_quiz("#other-nb:0.0"' in second.cells[1].source
+
+
+def test_code_cells_are_not_parsed(preprocessor, resources):
+    """A ``#### Quiz`` comment in code is not a quiz (it used to abort generate_assignment)."""
+    code = nbformat.v4.new_code_cell(source="#### Quiz helpers\ndef f():\n    return 1")
+    nb, _ = preprocessor.preprocess(make_notebook(code), resources)
+    assert len(nb.cells) == 1
+    assert nb.cells[0].source == code.source
+
+
+def test_generated_source_is_valid_python_for_awkward_notebook_names(preprocessor):
+    import ast
+
+    name = 'week "1" \\ intro'
+    nb, _ = preprocessor.preprocess(make_notebook(task_cell(QUIZ_SOURCE)), {"unique_key": name})
+    ast.parse(nb.cells[1].source)
+    assert '"#week \\"1\\" \\\\ intro:0.0"' in nb.cells[1].source
+    assert 'id="week &quot;1&quot; \\ intro:0.0"' in nb.cells[0].source
 
 
 # ---------------------------------------------------------------------------
@@ -171,13 +199,22 @@ def test_parse_error_in_task_cell_reraises(preprocessor, resources):
             preprocessor.preprocess(nb, resources)
 
 
-def test_parse_error_in_plain_cell_enforce_true_skips(preprocessor, resources):
-    original = "original content"
-    nb = make_notebook(plain_cell(original))
-    with patch("nbgrader_jupyterquiz.grader.preprocessor.parse.parse_cell", side_effect=ParseError("bad")):
-        nb, _ = preprocessor.preprocess(nb, resources)
+def test_parse_error_in_plain_cell_enforce_true_raises(preprocessor, resources):
+    """A malformed quiz outside a task cell must not ship unparsed (answer key included)."""
+    source = '#### Quiz\n* (SC) "Q?"\n  + "A"\n  + "B"\n#### End Quiz'
+    nb = make_notebook(plain_cell(source))
+    with pytest.raises(RuntimeError, match="non-task cell") as excinfo:
+        preprocessor.preprocess(nb, resources)
+    assert isinstance(excinfo.value.__cause__, ParseError)
+
+
+def test_malformed_region_in_plain_cell_enforce_false_left_unchanged(resources):
+    pp = CreateQuiz()
+    pp.enforce_metadata = False
+    source = "#### Quiz\nno end delimiter"
+    nb, _ = pp.preprocess(make_notebook(plain_cell(source)), resources)
     assert len(nb.cells) == 1
-    assert nb.cells[0].source == original
+    assert nb.cells[0].source == source
 
 
 def test_parse_error_in_plain_cell_enforce_false_logs_warning(resources, caplog):
@@ -236,27 +273,44 @@ def test_celltoolbar_metadata_removed(preprocessor, resources):
     assert "celltoolbar" not in nb.metadata
 
 
-def test_filename_mode(resources, tmp_path):
-    quiz_file = tmp_path / "quiz.json"
-    source = f'#### Quiz filename={quiz_file} inline=false encoded=false\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+def test_filename_mode(resources):
+    """``filename=`` emits the data via resources["outputs"] (written next to the release notebook)."""
+    source = '#### Quiz filename=quiz.json\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
     pp = CreateQuiz()
     nb = make_notebook(task_cell(source))
-    nb, _ = pp.preprocess(nb, resources)
-    assert quiz_file.exists()
-    assert '"type"' in quiz_file.read_text()
-    assert str(quiz_file) in nb.cells[1].source
+    nb, resources = pp.preprocess(nb, resources)
+    # Plain JSON (the display loader splices the file in as a JS literal),
+    # even though ``encoded`` defaults to true.
+    data = json.loads(resources["outputs"]["quiz.json"])
+    assert data[0]["question"] == "Q?"
+    # ``filename`` overrides ``inline``: nothing embedded in the cell.
+    assert "<span" not in nb.cells[0].source
+    # display_quiz loads exactly that file — no ``:tag`` suffix.
+    assert 'display_quiz("quiz.json", grade_id=None)' in nb.cells[1].source
 
 
-def test_filename_oserror_is_logged(resources, caplog):
-    source = '#### Quiz filename=/no/such/dir/quiz.json inline=false\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
-    pp = CreateQuiz()
-    nb = make_notebook(task_cell(source))
-    import logging
+def test_filename_mode_graded_file_is_redacted(resources):
+    source = '#### Quiz filename=data/quiz.json\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    cell = task_cell(source)
+    cell.metadata["nbgrader"]["grade_id"] = "q1"
+    nb, resources = CreateQuiz().preprocess(make_notebook(cell), resources)
+    data = json.loads(resources["outputs"]["data/quiz.json"])
+    assert all("correct" not in a for a in data[0]["answers"])
+    assert "display_quiz(\"data/quiz.json\", grade_id='q1-autograded')" in nb.cells[1].source
 
-    with caplog.at_level(logging.ERROR):
-        nb, _ = pp.preprocess(nb, resources)
-    assert any("Cannot open" in r.message for r in caplog.records)
-    assert len(nb.cells) == 2  # code cell still appended despite the error
+
+def test_filename_reused_in_one_notebook_raises(resources):
+    source = '#### Quiz filename=quiz.json\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    nb = make_notebook(task_cell(source), task_cell(source))
+    with pytest.raises(RuntimeError, match="more than one quiz"):
+        CreateQuiz().preprocess(nb, resources)
+
+
+@pytest.mark.parametrize("filename", ["/abs/quiz.json", "../quiz.json", "sub/../../quiz.json", "..\\quiz.json", "C:\\quiz.json"])
+def test_filename_outside_notebook_dir_raises(resources, filename):
+    source = f'#### Quiz filename={filename}\n* (SC) "Q?"\n  + "A"\n  - "B"\n#### End Quiz'
+    with pytest.raises(ParseError, match="relative path"):
+        CreateQuiz().preprocess(make_notebook(task_cell(source)), resources)
 
 
 # ---------------------------------------------------------------------------
@@ -274,21 +328,21 @@ def test_inline_hidden_mode(preprocessor, resources):
 
 
 def test_inline_visible_mode(preprocessor, resources):
+    """``hidden=false`` shows the data but must still be locatable by display_quiz."""
     nb = make_notebook(task_cell(QUIZ_INLINE_VISIBLE))
     nb, _ = preprocessor.preprocess(nb, resources)
     src = nb.cells[0].source
-    assert "0.0=" in src
+    assert '<span id="test-nb:0.0"' in src
+    assert "display:none" not in src
     assert '"type"' in src
-
-
-def test_non_inline_mode(preprocessor, resources):
-    nb = make_notebook(task_cell(QUIZ_NON_INLINE))
-    nb, _ = preprocessor.preprocess(nb, resources)
-    # nothing extra injected into the markdown cell
-    assert "<span" not in nb.cells[0].source
-    assert "0.0=" not in nb.cells[0].source
-    # display_quiz references the notebook name
     assert 'display_quiz("#test-nb:0.0"' in nb.cells[1].source
+
+
+def test_non_inline_mode_without_filename_raises(preprocessor, resources):
+    """``inline=false`` alone leaves display_quiz nothing to load."""
+    nb = make_notebook(task_cell(QUIZ_NON_INLINE))
+    with pytest.raises(ParseError, match="inline=false requires filename"):
+        preprocessor.preprocess(nb, resources)
 
 
 def test_encoded_content_is_valid_base64(preprocessor, resources):
