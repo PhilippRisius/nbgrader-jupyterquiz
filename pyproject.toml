@@ -5,12 +5,12 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "nbgrader_jupyterquiz"
 authors = [
-  {name = "Philipp Emmo Tobias Risius", email = "philipp.e.risius@theo.physik.uni-giessen.de"}
+  { name = "Philipp Emmo Tobias Risius", email = "philipp.e.risius@theo.physik.uni-giessen.de" }
 ]
 maintainers = [
-  {name = "Philipp Emmo Tobias Risius", email = "philipp.e.risius@theo.physik.uni-giessen.de"}
+  { name = "Philipp Emmo Tobias Risius", email = "philipp.e.risius@theo.physik.uni-giessen.de" }
 ]
-readme = {file = "README.rst", content-type = "text/x-rst"}
+readme = { file = "README.rst", content-type = "text/x-rst" }
 requires-python = ">=3.10.0"
 keywords = ["nbgrader", "jupyterquiz", "education"]
 license = "MIT"
